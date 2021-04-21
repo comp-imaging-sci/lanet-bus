@@ -22,7 +22,10 @@ def train(model,
     # best_model_w = copy.deepcopy(model.state_dict())
     best_acc = 0
     acc_history = []
-    start_t = time.time() 
+    start_t = time.time()
+    max_save_count = 5
+    save_counter = 0
+    save_interval = 5 
     # add log to tensorborad 
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
@@ -69,8 +72,12 @@ def train(model,
                 torch.save(model.state_dict(), best_test_model)
             if phase == "test":
                 acc_history.append(epoch_acc)
-        if not (epoch % 5):
-            torch.save(model.state_dict(), model_save_path+"/w_epoch_{}.pt".format(epoch))
+        if not (epoch % save_interval):
+            save_counter += 1
+            torch.save(model.state_dict(), model_save_path+"/w_epoch_{}.pt".format(epoch+1))
+            oldest = epoch+1-save_interval*max_save_count
+            if os.path.exists(model_save_path+"/w_epoch_{}.pt".format(oldest)):
+                os.remove(model_save_path+"/w_epoch_{}.pt".format(oldest))
     time_elapsed = time.time() - start_t 
     print("Training complete in {:.0f}m {:.0f}s".format(time_elapsed//60, time_elapsed % 60))
     print("Best val acc: {:.4f}".format(best_acc))

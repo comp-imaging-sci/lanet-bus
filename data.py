@@ -104,7 +104,7 @@ def generate_image_list(img_dir, save_dir, test_sample_size=40):
 if __name__ == "__main__":
     import cv2
     image_dir = "/Users/zongfan/Projects/data/chest_xray"
-    image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
+    image_dir = "/shared/anastasio5/COVID19/data/Dataset_BUSI_with_GT"
     # config = {"input_size": 448}
     # ds, _ = prepare_data(image_dir, config)
     # batch_size = 2

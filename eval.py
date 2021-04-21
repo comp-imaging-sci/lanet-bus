@@ -16,11 +16,11 @@ def infer_model(model_name,
                 dataset="BUSI"):
     model = get_model(model_name=model_name, num_classes=num_classes, use_pretrained=False, return_logit=False).to(device)
     state_dict=torch.load(model_weights, map_location=torch.device(device))
-    # new_state_dict = OrderedDict()
-    # for k, v in state_dict.items():
-    #     name = k[7:] # remove 'module.' of dataparallel
-    #     new_state_dict[name]=v
-    new_state_dict = state_dict
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items():
+        name = k[7:] # remove 'module.' of dataparallel
+        new_state_dict[name]=v
+    #new_state_dict = state_dict
     model.load_state_dict(new_state_dict)
     model.eval()
     # config = {"input_size": input_size, "train": "train_sample.txt", "test": "train_sample.txt"}

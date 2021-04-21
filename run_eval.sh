@@ -1,5 +1,5 @@
 #!/bin/bash
-model_dir="test"
+model_dir="BUSI_res50"
 declare -a StringArray=("best_model.pt")
 for model in ${StringArray[@]};
 do
@@ -7,8 +7,8 @@ do
     python eval.py --model_name=resnet50 \
                --num_classes=3 \
                --model_weights=$full_path \
-               --input_size=64 \
-               --device=cpu \
+               --input_size=448 \
+               --device="cuda:0" \
                --dataset="BUSI"
     echo "Model processed: $model"
     echo "======================="
