@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torchvision import models
-
+from seg_net import DeepLabV3
 
 class LogitResnet(nn.Module):
     """return network logit"""
@@ -61,7 +61,6 @@ class LogitDensenet(nn.Module):
             return [x, l]
         return [x]
 
-
 def get_model(model_name, num_classes, use_pretrained=True, return_logit=False, return_last_f=False):
     if model_name in ["resnet50", "resnet34", "resnet18"]:
         model = LogitResnet(model_name, num_classes, return_logit=return_logit, use_pretrained=use_pretrained)
@@ -87,6 +86,8 @@ def get_model(model_name, num_classes, use_pretrained=True, return_logit=False, 
             model = models.inception_v3(pretrained=False, num_classes=num_classes, aux_logits=True)
         num_features = model.fc.in_features
         model.fc = nn.Linear(num_features, num_classes)
+    elif model_name == "deeplabv3":
+        model = DeepLabV3(num_classes=num_classes, pretrained=use_pretrained)
     else:
         print("unknown model name!")
     return model

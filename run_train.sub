@@ -1,6 +1,6 @@
 # cyclegan_testing.sub
 
-Executable = run_cls.sh
+Executable = run_train.sh
 # argument = " "
 #
 # FILE TRANSFER ARGUMENTS
@@ -12,13 +12,13 @@ Executable = run_cls.sh
 # Only if you need to specify a machine
 #requirements = (machine == "aristotle.bioen.illinois.edu")
 #requirements = (machine == "anastasio4.bioen.illinois.edu")
-requirements = (machine == "anastasio5.bioen.illinois.edu")
+#requirements = (machine == "anastasio5.bioen.illinois.edu")
 
 Universe = vanilla
 getenv = true
 request_gpus = 2
 
-Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_res50/train.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_res50/train.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_res50/train.err
+Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_deeplabv3_448/train.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_deeplabv3_448/train.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_deeplabv3_448/train.err
 Queue
