@@ -1,10 +1,10 @@
 #!/bin/bash
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
-python train.py --model_name=deeplabv3 \
-                --input_size=64 \
-                --num_classes=3 \
-                --batch_size=2 \
-                --num_epochs=5 \
+python train.py --model_name="deeplabv3" \
+                --image_size=64 \
+                --num_classes=1 \
+                --batch_size=12 \
+                --num_epochs=200 \
                 --model_save_path=test \
                 --device=cpu \
                 --lr=0.001 \

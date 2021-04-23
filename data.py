@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np 
 import re
 import random
+from util import get_image_mask
 
 
 BUSI_LABELS = ["normal", "malignant", "benign"] # breast cancer label
@@ -48,43 +49,23 @@ class BUSI_dataset(Dataset):
         # load mask
         mask = []
         if self._mask:
-            image_dir = os.path.dirname(image_name)
-            image_base_name = os.path.basename(image_name).replace(".png", "")
-            mask_name = os.path.join(image_dir, image_base_name+"_mask.png")
-            mask = Image.open(mask_name)
-            mask = mask.convert("L")
-            mask = np.asarray(mask)
-            # covert to range [0,1]
-            # mask = np.asarray(mask)/255
-            # load all mask if exist
-            count = 1
-            while True:
-                mask_name = os.path.join(image_dir, image_base_name+"_mask_{}.png".format(count))
-                if os.path.exists(mask_name):
-                    aux_mask = Image.open(mask_name)
-                    aux_mask = aux_mask.convert("L")
-                    aux_mask = np.asarray(aux_mask)
-                    mask = mask + aux_mask
-                    count += 1
-                else:
-                    break
-            mask = mask.astype(np.uint8) 
+            mask = get_image_mask(image_name)
             # assign class label
-            mask = mask * label_id
             mask = Image.fromarray(mask)
             if self._mask_transform:
                 random.seed(seed)
                 torch.manual_seed(seed)
                 # torch.set_rng_state(state)
                 mask = self._mask_transform(mask)
-                mask = mask.type(torch.long)
+                mask = mask.type(torch.float)
+                # mask = mask * label_id  # normal case is identical to backaground
         return {"image": img, "label": label_id, "mask": mask}
         
 
 def prepare_data(config):
     """
     config: 
-        input_size,
+        image_size: size of input images
         train: train img file list
         test: test img file list
         dataset: name of dataset to use: BUSI
@@ -94,7 +75,7 @@ def prepare_data(config):
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
             # transforms.Resize(480),
             transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(config["input_size"], scale=(0.85, 1.0), ratio=(0.85, 1.15)),
+            transforms.RandomResizedCrop(config["image_size"], scale=(0.5, 1.0), ratio=(0.75, 1.33)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.ColorJitter(0.12, 0.12, 0.08, 0.08),
@@ -106,7 +87,7 @@ def prepare_data(config):
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
             # transforms.Resize(480),
             transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(config["input_size"], scale=(0.85, 1.0), ratio=(0.85, 1.15)),
+            transforms.RandomResizedCrop(config["image_size"], scale=(0.5, 1.0), ratio=(0.75, 1.33)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             # transforms.ColorJitter(0.12, 0.12, 0.08, 0.08),
@@ -116,16 +97,16 @@ def prepare_data(config):
         ]), 
         'test_image': transforms.Compose([
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
-            transforms.Resize(config["input_size"]),
-            transforms.CenterCrop(config["input_size"]),
+            transforms.Resize(config["image_size"]),
+            transforms.CenterCrop(config["image_size"]),
             transforms.ToTensor(),
             transforms.Normalize([0.5], [0.5])
             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ]),
         'test_mask': transforms.Compose([
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
-            transforms.Resize(config["input_size"]),
-            transforms.CenterCrop(config["input_size"]),
+            transforms.Resize(config["image_size"]),
+            transforms.CenterCrop(config["image_size"]),
             transforms.ToTensor(),
             # transforms.Normalize([0.5], [0.5])
             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -170,9 +151,10 @@ def generate_image_list(img_dir, save_dir, test_sample_size=40):
 
 if __name__ == "__main__":
     import cv2
+    from util import draw_segmentation_mask
     image_dir = "/Users/zongfan/Projects/data/chest_xray"
     image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
-    config = {"input_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
+    config = {"image_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
     ds, _ = prepare_data(config)
     batch_size = 2
     dataloader = torch.utils.data.DataLoader(ds["train"], batch_size=batch_size)
@@ -183,6 +165,8 @@ if __name__ == "__main__":
         # img_shape = imgs.shape
         # imgs = imgs.view(img_shape[0]*img_shape[1], img_shape[2], img_shape[3], img_shape[4])
         # print(imgs.shape)
+        # draw_segmentation_mask(imgs, masks, "test/test.png")
+        # break
         for i in range(len(imgs)):
             img = imgs[i].numpy()
             img = (img + 1.) / 2. * 255

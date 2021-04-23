@@ -2,4 +2,5 @@ test
 __pycache__
 test_sample.txt
 train_sample.txt
-debug_sample.txt
+debug_sample_*
+draw_mask_sample.txt
