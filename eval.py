@@ -10,6 +10,7 @@ import pandas as pd
 
 
 BUSI_LABELS = ["normal", "malignant", "benign"]
+ORIG_LABELS = ["malignant", "benign"]
 
 
 def mean_confidence_interval(x, confidence=0.95):
@@ -78,7 +79,8 @@ class Eval():
             prob = torch.nn.Sigmoid()(outputs)
             pred_mask_tensor = (prob>0.5).type(torch.int)
         else:
-            _, pred_mask_tensor = torch.max(outputs, 1)
+            _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
+            # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
             pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
         draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file) 
     
@@ -158,6 +160,7 @@ class Eval():
             elif self.dataset == "test":
                 train_file = "debug_sample_benign.txt"
                 test_file = "debug_sample_benign.txt"
+                self.dataset = "BUSI"
         else:
             train_file = test_file
         config = {"image_size": self.image_size, 
@@ -175,9 +178,14 @@ class Eval():
                     img = data["image"].to(self.device)
                     outputs = self.model(img)
                     mask = data["mask"].to(self.device)
-                    prob = torch.nn.Sigmoid()(outputs)
-                    pred = (prob> 0.5).type(torch.int)
-                    iou = batch_iou(pred, mask, 2)
+                    if self.num_classes == 1:
+                        prob = torch.nn.Sigmoid()(outputs)
+                        pred_mask_tensor = (prob>0.5).type(torch.int)
+                    else:
+                        _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
+                        # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
+                        pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
+                    iou = batch_iou(pred_mask_tensor, mask, 2)
                     result_matrics.append(iou[0])
             print("Segmentation IOU: ", np.mean(result_matrics))
 

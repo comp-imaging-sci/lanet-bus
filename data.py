@@ -11,14 +11,22 @@ import pandas as pd
 import numpy as np 
 import re
 import random
-from util import get_image_mask
+from util import get_image_mask, dilute_mask
 
 
-BUSI_LABELS = ["normal", "malignant", "benign"] # breast cancer label
+ORI_LABELS = ["malignant", "benign"] # ORI dataset labels: https://data.mendeley.com/datasets/wmy84gzngw/1
+BUSI_LABELS = ["normal", "malignant", "benign"] # BUSI dataset labels: https://bcdr.eu/information/downloads
 
-
+# TODO: add gaussian noise or white noise to mask 
 class BUSI_dataset(Dataset):
-    def __init__(self, csv_file, transform=None, mask=False, mask_transform=None):
+    def __init__(self, csv_file, transform=None, mask=False, mask_transform=None, mask_dilute=15):
+        """
+        csv_file: csv file containing image file path and corresponding label
+        transform: transform for image
+        mask: return mask or not
+        mask_transform: transformation for mask
+        mask_dilute: dilute mask with given distance in all directions
+        """
         df = pd.read_csv(csv_file, sep=",", header=None)
         df.columns = ["img", "label"]
         self._img_files = df["img"].tolist()
@@ -26,6 +34,7 @@ class BUSI_dataset(Dataset):
         self._transform = transform
         self._mask = mask
         self._mask_transform = mask_transform
+        self._mask_dilute = mask_dilute
 
     def __len__(self):
         return len(self._img_files)
@@ -50,6 +59,7 @@ class BUSI_dataset(Dataset):
         mask = []
         if self._mask:
             mask = get_image_mask(image_name)
+            mask = dilute_mask(mask, dilute_distance=self._mask_dilute)
             # assign class label
             mask = Image.fromarray(mask)
             if self._mask_transform:
@@ -117,7 +127,8 @@ def prepare_data(config):
         image_datasets = {x: BUSI_dataset(config[x], 
                                           transform=data_transforms[x+"_image"], 
                                           mask=mask, 
-                                          mask_transform=data_transforms[x+"_mask"]) for x in ["train", "test"]}
+                                          mask_transform=data_transforms[x+"_mask"], 
+                                          mask_dilute=config.get("mask_dilute", 0)) for x in ["train", "test"]}
     else:
         print("Unknown dataset")
     # class_names = image_datasets["train"].classes 
@@ -127,9 +138,9 @@ def prepare_data(config):
 
 def generate_image_list(img_dir, save_dir, test_sample_size=40):
     global BUSI_LABELS
-    image_list = glob.glob(img_dir+"/**/*.png", recursive=True)
-    train_sample_file = os.path.join(save_dir, "train_sample.txt")
-    test_sample_file = os.path.join(save_dir, "test_sample.txt")
+    image_list = glob.glob(img_dir+"/**/*.bmp", recursive=True)
+    train_sample_file = os.path.join(save_dir, "train_sample_test.txt")
+    test_sample_file = os.path.join(save_dir, "test_sample_test.txt")
     random.shuffle(image_list)
     train_f = open(train_sample_file, "w")
     test_f = open(test_sample_file, "w")
@@ -152,8 +163,8 @@ def generate_image_list(img_dir, save_dir, test_sample_size=40):
 if __name__ == "__main__":
     import cv2
     from util import draw_segmentation_mask
-    image_dir = "/Users/zongfan/Projects/data/chest_xray"
-    image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
+    image_dir = "/Users/zongfan/Projects/data/originals"
+    # image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
     config = {"image_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
     ds, _ = prepare_data(config)
     batch_size = 2
@@ -180,7 +191,7 @@ if __name__ == "__main__":
             cv2.imshow("test", x)
             if cv2.waitKey(0) == ord("q"):
                 exit()
-    # generate_image_list(image_dir, ".", test_sample_size=40)
+    # generate_image_list(image_dir, ".", test_sample_size=32)
 
     # test_image = "/Users/zongfan/Projects/data/chest_xray/val/NORMAL/NORMAL2-IM-1427-0001.jpeg"
     # img = Image.open(test_image)

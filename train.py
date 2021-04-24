@@ -19,7 +19,8 @@ def train(model,
           criterion, 
           num_epochs, 
           num_classes,
-          device="cpu"):
+          device="cpu",
+          mask_weight=None):
     """Train Classifier"""
     # best_model_w = copy.deepcopy(model.state_dict())
     best_acc = 0
@@ -32,6 +33,10 @@ def train(model,
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     best_test_model = os.path.join(model_save_path, "best_model.pt") 
+    if model_name == "resnet50_mask":
+        mask_criterion = nn.L1Loss()
+        if mask_weight is None:
+            mask_weight = 1.0 
     for epoch in range(num_epochs):
         print("Epoch {}/{}".format(epoch+1, num_epochs))
         print("-" * 10)
@@ -45,7 +50,7 @@ def train(model,
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
                 labels = data["label"].to(device)
-                if model_name == "deeplabv3":
+                if model_name in ["deeplabv3", "resnet50_mask"]:
                     masks = data["mask"].to(device)
                     # print(masks, torch.min(masks), torch.max(masks))
                 optimizer.zero_grad()
@@ -65,6 +70,14 @@ def train(model,
                         preds = (nn.Sigmoid()(outputs) > 0.5).type(torch.int)
                         # pred_mask = preds.data.cpu().numpy().ravel()
                         # real_mask = masks.data.cpu().numpy().ravel()
+                    elif model_name == "resnet50_mask":
+                        cls_loss = criterion(outputs[0], labels)
+                        # resize masks to final feature size
+                        featmap_size = outputs[1].shape[-1]
+                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bicubic")
+                        mask_loss = mask_criterion(outputs[1], masks_inter)
+                        loss = cls_loss + mask_loss * mask_weight
+                        _, preds = torch.max(outputs[0], 1)
                     else:
                         loss = criterion(outputs[0], labels)
                         _, preds = torch.max(outputs[0], 1)
@@ -115,18 +128,21 @@ def run(model_name,
         moment=0.9, 
         use_pretrained=True,
         dataset="BUSI",
-        num_gpus=1):
+        num_gpus=1, 
+        dilute_mask=0,
+        mask_weight=None):
     # get model 
     model = get_model(model_name=model_name,
                       num_classes=num_classes, 
                       use_pretrained=use_pretrained, 
                       return_logit=False).to(device)
     if dataset == "BUSI":
-        # train_file = "train_sample.txt"
-        # test_file = "test_sample.txt"
+        train_file = "train_sample.txt"
+        test_file = "test_sample.txt"
     elif dataset == "test": 
         train_file = "debug_sample_benign.txt"
         test_file = "debug_sample_benign.txt"
+        dataset = "BUSI"
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
         # deploy model on multi-gpus
@@ -135,10 +151,11 @@ def run(model_name,
               "train": train_file, 
               "test": test_file, 
               "dataset": dataset,
-              "mask": model_name == "deeplabv3",
+              "mask": model_name in ["deeplabv3", "resnet50_mask"],
+              "dilute_mask": dilute_mask
               }
     image_datasets, data_sizes = prepare_data(config)
-    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=4,   drop_last=True) for x in ["train", "test"]}
+    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=0,   drop_last=True) for x in ["train", "test"]}
     # loss function
     # cls_weight = [2.0, 1.0, 1.0]
     if model_name == "deeplabv3":
@@ -152,8 +169,8 @@ def run(model_name,
         if param.requires_grad == True:
             print("\t", name)
     print("-"*40)
-    optimizer = optim.SGD(model.parameters(), lr=lr, momentum=moment) 
-    # optimizer = optim.Adam(model.parameters(), lr=lr)
+    # optimizer = optim.SGD(model.parameters(), lr=lr, momentum=moment) 
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     # if use_cent_loss:
     #     criterion_cent = CenterLoss(num_classes, feat_dim=feat_dim).to(device)
     #     optim_cent = torch.optim.SGD(criterion_cent.parameters(), lr=lr_cent)
@@ -167,7 +184,8 @@ def run(model_name,
                            criterion=criterion, 
                            num_epochs=num_epochs, 
                            num_classes=num_classes,
-                           device=device)
+                           device=device,
+                           mask_weight=mask_weight)
     # torch.save(model_ft.state_dict(), model_save_path+'/best_model.pt')
     print("Val acc history: ", hist)
 
