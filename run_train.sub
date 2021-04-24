@@ -12,7 +12,7 @@ Executable = run_train.sh
 # Only if you need to specify a machine
 #requirements = (machine == "aristotle.bioen.illinois.edu")
 #requirements = (machine == "anastasio4.bioen.illinois.edu")
-#requirements = (machine == "anastasio5.bioen.illinois.edu")
+requirements = (machine == "anastasio5.bioen.illinois.edu")
 
 Universe = vanilla
 getenv = true

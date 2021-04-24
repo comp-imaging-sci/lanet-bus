@@ -9,18 +9,19 @@ import torch.nn as nn
 from torchvision import models
 
 class DeepLabV3(nn.Module):
-    def __init__(self, num_classes=3, pretrained=True):
+    def __init__(self, num_classes=1, pretrained=True):
         super(DeepLabV3, self).__init__()
         # load model 
         self.model = models.segmentation.deeplabv3_resnet50(pretrained=pretrained, progress=True)
         classifier = models.segmentation.deeplabv3.DeepLabHead(2048, num_classes)
         self.model.classifier = classifier
-        self.m = nn.LogSoftmax(dim=1)
+        # self.m = nn.LogSoftmax(dim=1)
+        # self.m = nn.Sigmoid()
 
     def forward(self, x):
         x = self.model(x)
-        x = self.m(x['out'])
-        return x
+        # x = self.m(x['out'])
+        return x['out']
 
 if __name__ == "__main__":
     model = DeepLabV3(3)

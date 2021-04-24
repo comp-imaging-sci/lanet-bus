@@ -8,6 +8,7 @@ import time, os
 import fire
 import numpy as np
 from sklearn.metrics import f1_score, roc_auc_score
+from util import batch_iou
 
 
 def train(model, 
@@ -17,7 +18,7 @@ def train(model,
           optimizer, 
           criterion, 
           num_epochs, 
-          input_size, 
+          num_classes,
           device="cpu"):
     """Train Classifier"""
     # best_model_w = copy.deepcopy(model.state_dict())
@@ -46,27 +47,29 @@ def train(model,
                 labels = data["label"].to(device)
                 if model_name == "deeplabv3":
                     masks = data["mask"].to(device)
+                    # print(masks, torch.min(masks), torch.max(masks))
                 optimizer.zero_grad()
                 # if use_cent_loss:
                 #     optimizer_cent.zero_grad()
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
                     if model_name == "deeplabv3":
-                        masks = torch.squeeze(masks, dim=1)
+                        # masks = torch.squeeze(masks, dim=1)
                         # masks = masks.permute(1,2,0)
                         # masks = masks.reshape(-1)
+                        loss = criterion(outputs, masks)
                         # outputs = outputs.permute(2, 3, 0, 1)
                         # outputs = outputs.reshape(outputs.shape[0]*outputs.shape[1]*outputs.shape[2], outputs.shape[3])
-                        loss = criterion(outputs, masks)
                         # loss = nn.CrossEntropyLoss()(outputs, masks)
-                        _, preds = torch.max(outputs, axis=1)
-                        pred_mask = preds.data.cpu().numpy().ravel()
-                        real_mask = masks.data.cpu().numpy().ravel()
+                        # _, preds = torch.max(outputs, axis=1)
+                        preds = (nn.Sigmoid()(outputs) > 0.5).type(torch.int)
+                        # pred_mask = preds.data.cpu().numpy().ravel()
+                        # real_mask = masks.data.cpu().numpy().ravel()
                     else:
                         loss = criterion(outputs[0], labels)
                         _, preds = torch.max(outputs[0], 1)
-                        preds = preds.data.cpu().numpy().ravel()
-                        labels = labels.data.cpu().numpy().ravel()
+                        # preds = preds.data.cpu().numpy().ravel()
+                        # labels = labels.data.cpu().numpy().ravel()
                     # print(outputs[0], labels)
                     if phase == "train":
                         loss.backward()
@@ -74,10 +77,11 @@ def train(model,
                 running_loss += loss.item() * inputs.size(0)
                 # print(preds, labels.data, torch.sum(preds == labels.data))
                 if model_name == "deeplabv3":
-                    match_ratio = np.sum(pred_mask == real_mask) / (input_size ** 2)  # mean via image size
-                    running_corrects += match_ratio
+                    # match_ratio = np.sum(pred_mask == real_mask) / (input_size ** 2)  # mean via image size
+                    ious = batch_iou(preds, masks, 2) # background + foreground
+                    running_corrects += np.sum(ious)
                 else:
-                    running_corrects += np.sum(preds == labels)
+                    running_corrects += np.sum(preds.data.cpu().numpy() == labels.data.cpu().numpy())
             datasize = len(dataloader[phase].dataset)
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects / datasize
@@ -101,7 +105,7 @@ def train(model,
 
 
 def run(model_name, 
-        input_size=448, 
+        image_size=448, 
         num_classes=3, 
         batch_size=32, 
         num_epochs=40, 
@@ -120,24 +124,26 @@ def run(model_name,
     if dataset == "BUSI":
         train_file = "train_sample_v2.txt"
         test_file = "test_sample_v2.txt"
-        #train_file = "debug_sample.txt"
-        #test_file = "debug_sample.txt"
+    elif dataset == "test": 
+        train_file = "debug_sample_benign.txt"
+        test_file = "debug_sample_benign.txt"
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
         # deploy model on multi-gpus
         model = nn.DataParallel(model, device_ids=device_ids)
-    config = {"input_size": input_size, 
+    config = {"image_size": image_size, 
               "train": train_file, 
               "test": test_file, 
               "dataset": dataset,
-              "mask": model_name == "deeplabv3"}
-    # config = {"input_size": input_size, "train": "train_sample.txt", "test": "train_sample.txt", "dataset": dataset}
+              "mask": model_name == "deeplabv3",
+              }
     image_datasets, data_sizes = prepare_data(config)
-    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=1,   drop_last=True) for x in ["train", "test"]}
+    dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=4,   drop_last=True) for x in ["train", "test"]}
     # loss function
     # cls_weight = [2.0, 1.0, 1.0]
     if model_name == "deeplabv3":
-        criterion = nn.NLLLoss(reduction="mean")
+        # criterion = nn.NLLLoss(reduction="mean").to(device)
+        criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(5.0)).to(device)
     else:
         criterion = nn.CrossEntropyLoss().to(device)
     # optimizer
@@ -147,6 +153,7 @@ def run(model_name,
             print("\t", name)
     print("-"*40)
     optimizer = optim.SGD(model.parameters(), lr=lr, momentum=moment) 
+    # optimizer = optim.Adam(model.parameters(), lr=lr)
     # if use_cent_loss:
     #     criterion_cent = CenterLoss(num_classes, feat_dim=feat_dim).to(device)
     #     optim_cent = torch.optim.SGD(criterion_cent.parameters(), lr=lr_cent)
@@ -159,7 +166,7 @@ def run(model_name,
                            optimizer=optimizer, 
                            criterion=criterion, 
                            num_epochs=num_epochs, 
-                           input_size=input_size, 
+                           num_classes=num_classes,
                            device=device)
     # torch.save(model_ft.state_dict(), model_save_path+'/best_model.pt')
     print("Val acc history: ", hist)

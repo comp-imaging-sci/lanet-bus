@@ -5,3 +5,5 @@ train_sample.txt
 BUSI_*
 debug_sample.txt
 .DS_Store
+debug_sample_*
+draw_mask_sample.txt

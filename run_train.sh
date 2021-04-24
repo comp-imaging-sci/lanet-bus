@@ -2,9 +2,9 @@
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
 python train.py --model_name=deeplabv3 \
                 --input_size=448 \
-                --num_classes=3 \
+                --num_classes=1 \
                 --batch_size=12 \
-                --num_epochs=150 \
+                --num_epochs=200 \
                 --model_save_path=BUSI_deeplabv3_448 \
                 --device=cuda:0 \
                 --lr=0.001 \

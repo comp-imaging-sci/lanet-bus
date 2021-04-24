@@ -13,12 +13,13 @@ Executable = run_eval.sh
 #requirements = (machine == "aristotle.bioen.illinois.edu")
 #requirements = (machine == "anastasio4.bioen.illinois.edu")
 requirements = (machine == "anastasio5.bioen.illinois.edu")
+#requirements = (machine == "radon.bioen.illinois.edu")
 
 Universe = vanilla
 getenv = true
-request_gpus = 1
+request_gpus = 1  
 
-Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_res50.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_res50.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_res50.err
+Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/ORIG_test_res50.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/ORIG_test_res50.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/ORIG_test_res50.err
 Queue
