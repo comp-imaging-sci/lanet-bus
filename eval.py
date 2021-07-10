@@ -10,6 +10,7 @@ import pandas as pd
 
 
 BUSI_LABELS = ["normal", "malignant", "benign"]
+ORIG_LABELS = ["malignant", "benign"]
 
 
 def mean_confidence_interval(x, confidence=0.95):
@@ -75,13 +76,20 @@ class Eval():
         image_tensor = image_tensor.squeeze(1)
         outputs = self.model(image_tensor)
         if self.num_classes == 1:
-            prob = torch.nn.Sigmoid()(outputs)
+            if self.model_name == "deeplabv3":
+                prob = torch.nn.Sigmoid()(outputs)
             pred_mask_tensor = (prob>0.5).type(torch.int)
         else:
-            _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
-            pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
-        draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file) 
-    
+            if self.model_name == "resnet50_mask":
+                # interpolate mask to original size
+                outputs = torch.nn.functional.interpolate(outputs[1], size=(self.image_size, self.image_size), mode="bicubic")
+                pred_mask_tensor = (outputs>0.5).type(torch.int) 
+            else:
+                _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
+            # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
+            pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)    
+        draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file)
+
     def accuracy(self, test_file=None):
         if test_file is None:
             if self.dataset == "BUSI":
@@ -158,6 +166,7 @@ class Eval():
             elif self.dataset == "test":
                 train_file = "debug_sample_benign.txt"
                 test_file = "debug_sample_benign.txt"
+                self.dataset = "BUSI"
         else:
             train_file = test_file
         config = {"image_size": self.image_size, 

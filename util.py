@@ -107,4 +107,26 @@ def get_image_mask(image_name, image_size=None):
     if image_size:
         mask = cv2.resize(mask, (image_size, image_size))
     return mask
+
+
+def dilute_mask(mask, dilute_distance=0):
+    """Expand mask regions with given distance
+    mask: image with dim (H, W, C)
+    """
+    if dilute_distance == 0: # no dilution
+        return mask
+    background = np.zeros_like(mask)
+    # left, right, up, down dilute
+    l_dilute = background.copy() 
+    r_dilute = background.copy()
+    u_dilute = background.copy()
+    d_dilute = background.copy()
+    l_dilute[:, 0:-dilute_distance] = mask[:, dilute_distance:]
+    r_dilute[:, dilute_distance:] = mask[:, 0:-dilute_distance]
+    u_dilute[0:-dilute_distance, :] = mask[dilute_distance:, :]
+    d_dilute[dilute_distance:, :] = mask[0:-dilute_distance, :]
+    diluted = l_dilute | r_dilute | u_dilute | d_dilute
+    return diluted
+
+
     
