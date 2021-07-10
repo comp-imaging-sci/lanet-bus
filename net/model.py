@@ -1,7 +1,10 @@
 import torch
 import torch.nn as nn
 from torchvision import models
-from seg_net import DeepLabV3
+try:    
+    from net.seg_net import DeepLabV3
+except:
+    from .seg_net import DeepLabV3
 
 
 def initialize_weights(net):
@@ -29,9 +32,9 @@ class LogitResnet(nn.Module):
         num_features = model.fc.in_features
         self.return_logit = return_logit
         self.return_feature = return_feature
+        self.net = nn.Sequential(*list(model.children())[:-2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(num_features, num_classes)
-        self.net = nn.Sequential(*list(model.children())[:-2])
     
     def forward(self, inputs):
         f = self.net(inputs)

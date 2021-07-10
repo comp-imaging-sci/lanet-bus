@@ -11,11 +11,12 @@ import pandas as pd
 import numpy as np 
 import re
 import random
-from util import get_image_mask, dilute_mask
+from util import get_image_mask, dilute_mask, parse_mayo_mask_box
 
 
 ORI_LABELS = ["malignant", "benign"] # ORI dataset labels: https://data.mendeley.com/datasets/wmy84gzngw/1
 BUSI_LABELS = ["normal", "malignant", "benign"] # BUSI dataset labels: https://bcdr.eu/information/downloads
+MAYO_LABELS = ["Malignant", "Benign"] 
 
 # TODO: add gaussian noise or white noise to mask 
 class BUSI_dataset(Dataset):
@@ -58,7 +59,7 @@ class BUSI_dataset(Dataset):
         # load mask
         mask = []
         if self._mask:
-            mask = get_image_mask(image_name)
+            mask = get_image_mask(image_name, dataset="BUSI")
             mask = dilute_mask(mask, dilute_distance=self._mask_dilute)
             # assign class label
             mask = Image.fromarray(mask)
@@ -70,7 +71,90 @@ class BUSI_dataset(Dataset):
                 mask = mask.type(torch.float)
                 # mask = mask * label_id  # normal case is identical to backaground
         return {"image": img, "label": label_id, "mask": mask}
-        
+
+
+# input image width/height ratio
+BUSI_IMAGE_RATIO = 570/460
+# skip padding for MAYO video data
+MAYO_VIDEO_SKIP_PADDING = [75, 75, 25, 25]
+# skip padding for MAYO annotated data
+# MAYO_ANNO_SKIP_PADDING = [50, 50, 0, 0]
+
+class MAYO_dataset(Dataset):
+    """Mayo dataset preprocessor"""
+    def __init__(self, csv_file, crop_image_ratio=None, skip_padding=[75, 75, 25, 25], transform=None, mask=False, mask_transform=None, mask_dilute=30):
+        """
+        csv_file: files conting images paths for training or testing
+        crop_image_ratio: if given, crop a window from raw image first and the window should have this width/height ratio
+        skip_padding: number of pixels to skip along each side: left, right, top, bottom
+        """
+        df = pd.read_csv(csv_file, sep=",", header=None)
+        df.columns = ["img", "label", "annotate"]
+        self._img_files = df["img"].tolist()
+        self._img_labels = df["label"].tolist()
+        self._transform = transform
+        self._mask = mask 
+        self._mask_transform = mask_transform
+        self._mask_dilute = mask_dilute
+        self._crop_image_ratio = crop_image_ratio
+        self._skip_padding = skip_padding
+        if mask:
+            mask_str = df["annotate"].tolist()
+            self._mask_coord = np.array([x.split(":") for x in mask_str], dtype=int)
+        #     self._mask_coord = parse_mayo_mask_box(mask_annotate_file, mask_annotate_dir)
+        # raw image width and height (Video frames are 852x500)
+        # self._image_height = 500 
+        # self._image_width = 854
+    
+    def __len__(self):
+        return len(self._img_files)
+    
+    def crop(self, frame):
+        # remove padding first
+        img_w, img_h = frame.size
+        frame = frame.crop([self._skip_padding[0], self._skip_padding[2], img_w-self._skip_padding[1], img_h-self._skip_padding[3]])
+        img_w, img_h = frame.size
+        # get rescaled w and h as given ratio
+        crop_h = img_h
+        crop_w = int(self._crop_image_ratio * crop_h)
+        # determine random crop image's center
+        lp = random.randint(0, img_w-crop_w)
+        # crop coord: top left + bottom right 
+        crop_coords = [lp, 0, lp+crop_w, crop_h]
+        return frame.crop(crop_coords)
+    
+    def __getitem__(self, idx):
+        image_name = self._img_files[idx]
+        assert os.path.exists(image_name), "Image file not found!"
+        # load image
+        img = Image.open(image_name)
+        img = img.convert("RGB")
+        label = self._img_labels[idx]
+        label_id = MAYO_LABELS.index(label)
+        # crop image
+        img = self.crop(img)
+        # get the identical random seed for both image and mask
+        seed = random.randint(0, 2147483647)
+        if self._transform:
+            # state = torch.get_rng_state()
+            random.seed(seed)
+            torch.manual_seed(seed)
+            img = self._transform(img) 
+        mask = []
+        if self._mask:
+            mask = get_image_mask(image_name, dataset="MAYO", mask_coord=self._mask_coord[idx])
+            mask = dilute_mask(mask, dilute_distance=self._mask_dilute)
+            # assign class label
+            mask = Image.fromarray(mask)
+            if self._mask_transform:
+                random.seed(seed)
+                torch.manual_seed(seed)
+                # torch.set_rng_state(state)
+                mask = self._mask_transform(mask)
+                mask = mask.type(torch.float)
+                # mask = mask * label_id  # normal case is identical to backaground
+        return {"image": img, "label": label_id, "mask": mask}
+
 
 def prepare_data(config):
     """
@@ -83,9 +167,9 @@ def prepare_data(config):
     data_transforms = {
         'train_image': transforms.Compose([   
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
-            # transforms.Resize(480),
+            # transforms.Resize(config["image_size"]),
             transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(config["image_size"], scale=(0.5, 1.0), ratio=(0.75, 1.33)),
+            transforms.RandomResizedCrop(config["image_size"], scale=(0.75, 1.0), ratio=(0.75, 1.33)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             transforms.ColorJitter(0.12, 0.12, 0.08, 0.08),
@@ -95,9 +179,9 @@ def prepare_data(config):
         ]),
         'train_mask': transforms.Compose([   
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
-            # transforms.Resize(480),
+            # transforms.Resize(config["image_size"]),
             transforms.RandomRotation(45),
-            transforms.RandomResizedCrop(config["image_size"], scale=(0.5, 1.0), ratio=(0.75, 1.33)),
+            transforms.RandomResizedCrop(config["image_size"], scale=(0.75, 1.0), ratio=(0.75, 1.33)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
             # transforms.ColorJitter(0.12, 0.12, 0.08, 0.08),
@@ -129,6 +213,17 @@ def prepare_data(config):
                                           mask=mask, 
                                           mask_transform=data_transforms[x+"_mask"], 
                                           mask_dilute=config.get("mask_dilute", 0)) for x in ["train", "test"]}
+    elif config["dataset"] == "MAYO":
+        image_datasets = {x: MAYO_dataset(config[x], 
+                                          crop_image_ratio=BUSI_IMAGE_RATIO,
+                                          skip_padding=MAYO_VIDEO_SKIP_PADDING,
+                                          transform=data_transforms[x+"_image"],
+                                          mask=mask,
+                                          mask_transform=data_transforms[x+"_mask"], 
+                                          mask_dilute=config.get("mask_dilute", 0),
+                                        #   mask_annotate_dir=config.get("mask_anno_dir", None), 
+                                        #   mask_annotate_file=config.get("mask_annotate_file", None)
+                                          ) for x in ["train", "test"]}
     else:
         print("Unknown dataset")
     # class_names = image_datasets["train"].classes 
@@ -161,42 +256,49 @@ def generate_image_list(img_dir, save_dir, test_sample_size=40):
 
 
 if __name__ == "__main__":
-    import cv2
-    from util import draw_segmentation_mask
-    image_dir = "/Users/zongfan/Projects/data/originals"
-    # image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
-    config = {"image_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
-    ds, _ = prepare_data(config)
-    batch_size = 2
-    dataloader = torch.utils.data.DataLoader(ds["train"], batch_size=batch_size)
-    for data in dataloader:
-        imgs = data['image']
-        masks = data["mask"]
+    # import cv2
+    # from util import draw_segmentation_mask
+    # image_dir = "/Users/zongfan/Projects/data/originals"
+    # # image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
+    # config = {"image_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
+    # ds, _ = prepare_data(config)
+    # batch_size = 2
+    # dataloader = torch.utils.data.DataLoader(ds["train"], batch_size=batch_size)
+    # for data in dataloader:
+    #     imgs = data['image']
+    #     masks = data["mask"]
         # print(imgs.shape)
         # img_shape = imgs.shape
         # imgs = imgs.view(img_shape[0]*img_shape[1], img_shape[2], img_shape[3], img_shape[4])
         # print(imgs.shape)
         # draw_segmentation_mask(imgs, masks, "test/test.png")
         # break
-        for i in range(len(imgs)):
-            img = imgs[i].numpy()
-            img = (img + 1.) / 2. * 255
-            mask = masks[i].numpy()
-            mask = mask.repeat(3, axis=0)
-            mask = mask * 255
-            img = np.concatenate([img, mask], axis=2)
-            x = np.transpose(img, (1, 2, 0))
-            x = x.astype(np.uint8)
-            x = cv2.cvtColor(x, cv2.COLOR_RGB2BGR)
-            cv2.imshow("test", x)
-            if cv2.waitKey(0) == ord("q"):
-                exit()
+        # for i in range(len(imgs)):
+        #     img = imgs[i].numpy()
+        #     img = (img + 1.) / 2. * 255
+        #     mask = masks[i].numpy()
+        #     mask = mask.repeat(3, axis=0)
+        #     mask = mask * 255
+        #     img = np.concatenate([img, mask], axis=2)
+        #     x = np.transpose(img, (1, 2, 0))
+        #     x = x.astype(np.uint8)
+        #     x = cv2.cvtColor(x, cv2.COLOR_RGB2BGR)
+        #     cv2.imshow("test", x)
+        #     if cv2.waitKey(0) == ord("q"):
+        #         exit()
     # generate_image_list(image_dir, ".", test_sample_size=32)
 
-    # test_image = "/Users/zongfan/Projects/data/chest_xray/val/NORMAL/NORMAL2-IM-1427-0001.jpeg"
-    # img = Image.open(test_image)
-    # print(img.size)
-    # img = img.convert("RGB")
+    test_image = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images/050_IM00009 video_105.png"
+    train_file = "data/mayo_train.txt"
+
+    img = Image.open(test_image)
+    print(img.size)
+    img = img.convert("RGB")
+    md = MAYO_dataset(train_file, BUSI_IMAGE_RATIO)
+    frame = md.crop(img)
+    print(frame.size)
+    frame.show()
+    img.show()
     # img = transforms.ToTensor()(img)
     # print(img.shape)
     # p = PatchGenerator(n=16, patch_size=448, style="grid")

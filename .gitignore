@@ -1,7 +1,5 @@
 test
 __pycache__
-test_sample*
-train_sample*
-debug_sample_*
-draw_mask_sample.txt
-best_model.pt
+*.pt
+model
+*.txt

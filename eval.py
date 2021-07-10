@@ -1,5 +1,5 @@
 import torch 
-from model import get_model
+from net.model import get_model
 from data import prepare_data
 import fire
 import numpy as np
@@ -65,7 +65,7 @@ class Eval():
         real_mask_list = []
         for image in images:
             image_tensor = read_image_tensor(image, self.image_size)
-            mask = get_image_mask(image, self.image_size)
+            mask = get_image_mask(image, self.image_size, dataset="BUSI")
             # mask = mask / 255
             mask = np.expand_dims(mask, 0)
             mask = torch.tensor(mask)
@@ -76,10 +76,16 @@ class Eval():
         image_tensor = image_tensor.squeeze(1)
         outputs = self.model(image_tensor)
         if self.num_classes == 1:
-            prob = torch.nn.Sigmoid()(outputs)
+            if self.model_name == "deeplabv3":
+                prob = torch.nn.Sigmoid()(outputs)
             pred_mask_tensor = (prob>0.5).type(torch.int)
         else:
-            _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
+            if self.model_name == "resnet50_mask":
+                # interpolate mask to original size
+                outputs = torch.nn.functional.interpolate(outputs[1], size=(self.image_size, self.image_size), mode="bicubic")
+                pred_mask_tensor = (outputs>0.5).type(torch.int) 
+            else:
+                _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
             # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
             pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
         draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file) 

@@ -2,13 +2,15 @@ import torch
 import torch.optim as optim 
 import torch.nn as nn
 from data import prepare_data
-from model import get_model
+from net.model import get_model
 import copy 
 import time, os
 import fire
 import numpy as np
 from sklearn.metrics import f1_score, roc_auc_score
 from util import batch_iou
+from collections import OrderedDict
+import re
 
 
 def train(model, 
@@ -74,7 +76,7 @@ def train(model,
                         cls_loss = criterion(outputs[0], labels)
                         # resize masks to final feature size
                         featmap_size = outputs[1].shape[-1]
-                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bicubic")
+                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear")
                         mask_loss = mask_criterion(outputs[1], masks_inter)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
@@ -116,6 +118,27 @@ def train(model,
     # model.load_state_dict(torch.load(best_model_w, map_location=torch.device(device)))
     return model, acc_history
 
+def load_weights(model, pretrained_weights, multi_gpu=False, device="cpu", num_classes=3):
+    state_dict=torch.load(pretrained_weights, map_location=torch.device(device))
+    new_state_dict = OrderedDict()
+    for k, v in state_dict.items(): # different class number, drop the last fc layer
+        if re.search("fc", k):
+            w_shape = list(v.size())
+            # drop normal class weights if the number of classes of pretrained weights is different from current training setting.
+            if w_shape != num_classes:
+                w_shape = [num_classes, *w_shape[1:]]
+                v = torch.rand(w_shape, requires_grad=True)
+                if len(w_shape) > 2:
+                    nn.init.kaiming_normal_(v) # weights
+                else:
+                    v.data.fill_(0.01) # bias
+        if multi_gpu:
+            name = k[7:] # remove 'module.' of dataparallel
+        else:
+            name = k
+        new_state_dict[name] = v
+    model.load_state_dict(new_state_dict)
+    return model
 
 def run(model_name, 
         image_size=448, 
@@ -127,6 +150,7 @@ def run(model_name,
         lr=0.001, 
         moment=0.9, 
         use_pretrained=True,
+        pretrained_weights=None,
         dataset="BUSI",
         num_gpus=1, 
         dilute_mask=0,
@@ -136,13 +160,26 @@ def run(model_name,
                       num_classes=num_classes, 
                       use_pretrained=use_pretrained, 
                       return_logit=False).to(device)
+    # load pretrained model weights
+    if pretrained_weights: 
+        try:
+            model = load_weights(model, pretrained_weights, multi_gpu=False, device=device, num_classes=num_classes)
+        except:
+            model = load_weights(model, pretrained_weights, multi_gpu=True, device=device, num_classes=num_classes)
     if dataset == "BUSI":
-        train_file = "train_sample.txt"
-        test_file = "test_sample.txt"
-    elif dataset == "test": 
-        train_file = "debug_sample_benign.txt"
-        test_file = "debug_sample_benign.txt"
+        train_file = "data/train_sample.txt"
+        test_file = "data/test_sample.txt"
+    elif dataset == "MAYO":
+        train_file = "data/mayo_train_mask.txt"
+        test_file = "data/mayo_test_mask.txt"
+    elif dataset == "test_BUSI": 
+        train_file = "example/debug_BUSI.txt"
+        test_file = "example/debug_BUSI.txt"
         dataset = "BUSI"
+    elif dataset == "test_MAYO":
+        train_file = "example/debug_MAYO_mask.txt"
+        test_file = "example/debug_MAYO_mask.txt"
+        dataset = "MAYO"
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
         # deploy model on multi-gpus
@@ -152,17 +189,20 @@ def run(model_name,
               "test": test_file, 
               "dataset": dataset,
               "mask": model_name in ["deeplabv3", "resnet50_mask"],
-              "dilute_mask": dilute_mask
+              "dilute_mask": dilute_mask,
               }
     image_datasets, data_sizes = prepare_data(config)
     dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=0,   drop_last=True) for x in ["train", "test"]}
     # loss function
-    # cls_weight = [2.0, 1.0, 1.0]
+    if dataset == "BUSI":
+        cls_weight = [2.0, 1.0, 1.0]
+    elif dataset == "MAYO":
+        cls_weight = [5.0, 1.0]
     if model_name == "deeplabv3":
         # criterion = nn.NLLLoss(reduction="mean").to(device)
         criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(5.0)).to(device)
     else:
-        criterion = nn.CrossEntropyLoss().to(device)
+        criterion = nn.CrossEntropyLoss(weight=torch.tensor(cls_weight)).to(device)
     # optimizer
     print("optimized parameter names")
     for name, param in model.named_parameters():
