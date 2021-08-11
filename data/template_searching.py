@@ -179,5 +179,7 @@ if __name__ == "__main__":
     # coord, frame = get_lesion_location(target, temp_images, draw_box=True)
     data_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images"
     anno_save_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/annotate"
+    data_dir = "/Users/zongfan/Downloads/annotate"
+    anno_save_dir = "/Users/zongfan/Downloads/annotate"
     image_save_dir = anno_save_dir
     run(data_dir, anno_save_dir, temp_images, draw_box=True)
