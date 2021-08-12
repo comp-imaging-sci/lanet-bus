@@ -12,14 +12,15 @@ Executable = run_eval.sh
 # Only if you need to specify a machine
 #requirements = (machine == "aristotle.bioen.illinois.edu")
 #requirements = (machine == "anastasio4.bioen.illinois.edu")
-#requirements = (machine == "anastasio5.bioen.illinois.edu")
+requirements = (machine == "anastasio5.bioen.illinois.edu")
+#requirements = (machine == "curie.bioen.illinois.edu")
 #requirements = (machine == "radon.bioen.illinois.edu")
 
 Universe = vanilla
 getenv = true
 request_gpus = 1  
 
-Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_deeplabv3_mask.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_deeplabv3_mask.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_deeplabv3_mask.err
+Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet50_mask_448.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet50_mask_448.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet50_mask_448.err
 Queue

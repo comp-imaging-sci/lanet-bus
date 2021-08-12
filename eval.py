@@ -1,5 +1,5 @@
 import torch 
-from model import get_model
+from net.model import get_model
 from data import prepare_data
 import fire
 import numpy as np
@@ -11,6 +11,7 @@ import pandas as pd
 
 BUSI_LABELS = ["normal", "malignant", "benign"]
 ORIG_LABELS = ["malignant", "benign"]
+MAYO_LABELS = ["Malignant", "Benign"]
 
 
 def mean_confidence_interval(x, confidence=0.95):
@@ -65,7 +66,7 @@ class Eval():
         real_mask_list = []
         for image in images:
             image_tensor = read_image_tensor(image, self.image_size)
-            mask = get_image_mask(image, self.image_size)
+            mask = get_image_mask(image, self.image_size, dataset="BUSI")
             # mask = mask / 255
             mask = np.expand_dims(mask, 0)
             mask = torch.tensor(mask)
@@ -87,17 +88,22 @@ class Eval():
             else:
                 _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
             # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
-            pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)    
-        draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file)
-
+            pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
+        draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file) 
+    
     def accuracy(self, test_file=None):
         if test_file is None:
             if self.dataset == "BUSI":
-                train_file = "train_sample_v2.txt"
-                test_file = "test_sample_v2.txt"
+                train_file = "data/train_sample.txt"
+                test_file = "data/test_sample.txt"
             elif self.dataset == "test":
-                train_file = "debug_sample_benign.txt"
-                test_file = "debug_sample_benign.txt"
+                train_file = "example/debug_sample_benign.txt"
+                test_file = "example/debug_sample_benign.txt"
+            elif self.dataset == "MAYO":
+                train_file = "data/mayo_train_mask_all.txt"
+                test_file = "data/mayo_test_mask_all.txt"
+                #train_file = "example/debug_MAYO.txt"
+                #test_file = "example/debug_MAYO.txt"
         else:
             train_file = test_file
         config = {"image_size": self.image_size, 
@@ -115,17 +121,31 @@ class Eval():
         #      |  COVID    |        |       |           |
         #      |  Pneumonia|        |       |           |
         #      ------------------------------------------
-
-        if self.dataset == "BUSI":
+        if self.dataset == "covidx":
             result_matrics = np.zeros((3, 3))
-            with torch.no_grad():
-                for data in dataloader:
-                    tag = data["label"].data.cpu().numpy()[0]
-                    img = data["image"].to(self.device)
-                    outputs = self.model(img)
-                    _, pred = torch.max(outputs[0], 1)
-                    pred = int(pred.cpu().numpy()[0])
-                    result_matrics[tag][pred] += 1
+        elif self.dataset == "MAYO":
+            result_matrics = np.zeros((2, 2)) 
+        with torch.no_grad():
+            for data in dataloader:
+                inputs = data["image"].to(self.device)
+                labels = data["label"].to(self.device)
+                tag = labels.cpu().numpy()[0]
+                outputs = self.model(inputs)
+                _, pred = torch.max(outputs[0], 1)
+                #score = outputs[0].numpy()
+                pred = int(pred.item())
+                result_matrics[tag][pred] += 1
+
+        # if self.dataset == "BUSI":
+        #     result_matrics = np.zeros((3, 3))
+        #     with torch.no_grad():
+        #         for data in dataloader:
+        #             tag = data["label"].data.cpu().numpy()[0]
+        #             img = data["image"].to(self.device)
+        #             outputs = self.model(img)
+        #             _, pred = torch.max(outputs[0], 1)
+        #             pred = int(pred.cpu().numpy()[0])
+        #             result_matrics[tag][pred] += 1
             # precision: TP / (TP + FP)
             print("result matrics: ", result_matrics)
             # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
@@ -151,21 +171,27 @@ class Eval():
                 res_speci.append(speci)
                 res_sens.append(sens)
                 f1_score.append(f1)
+        if self.dataset == "BUSI":
             print('Precision: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_acc[0],res_acc[1],res_acc[2], np.mean(res_acc)))
             print('Sensitivity: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_sens[0],res_sens[1],res_sens[2], np.mean(res_sens)))
             print('Specificity: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_speci[0],res_speci[1],res_speci[2], np.mean(res_speci)))
             print('F1 score: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(f1_score[0],f1_score[1],f1_score[2], np.mean(f1_score)))          
+        elif self.dataset == 'MAYO':
+            print('Precision: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_acc[0],res_acc[1], np.mean(res_acc)))
+            print('Sensitivity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_sens[0], res_sens[1], np.mean(res_sens)))
+            print('Specificity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_speci[0],res_speci[1], np.mean(res_speci)))
+            print('F1 score: w/o: {0:.3f}, with: {1:.3f}, avg{2:.3f}'.format(f1_score[0],f1_score[1], np.mean(f1_score)))
         else:
             print("unknown dataset") 
     
     def iou(self, test_file=None):
         if test_file is None:
             if self.dataset == "BUSI":
-                train_file = "train_sample.txt"
-                test_file = "test_sample.txt"
+                train_file = "data/train_sample.txt"
+                test_file = "data/test_sample.txt"
             elif self.dataset == "test":
-                train_file = "debug_sample_benign.txt"
-                test_file = "debug_sample_benign.txt"
+                train_file = "example/debug_sample_benign.txt"
+                test_file = "example/debug_sample_benign.txt"
                 self.dataset = "BUSI"
         else:
             train_file = test_file
