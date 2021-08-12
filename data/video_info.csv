@@ -112,8 +112,8 @@ Patient ID,Video ID,start,end,conf,frame,shape,type
 117-1,IM00016,105,119,1,1000,square,malignant
 117-1,IM00016,142,153,1,1000,square,malignant
 117-1,IM00017,24,37,1,1000,square,malignant
-117-1,IM00017,87,194,1,1000,square,malignant
 117-1,IM00017,141,157,1,1000,square,malignant
+117-1,IM00017,87,194,1,1000,square,malignant
 117-2,IM00006,1,92,1,1000,square,malignant
 117-2,IM00007,11,52,1,1000,square,malignant
 118,IM00009,14,43,1,1000,square,benign
