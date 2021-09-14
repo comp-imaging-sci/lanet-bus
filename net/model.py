@@ -84,13 +84,13 @@ class AttentionBlock(nn.Module):
     def __init__(self, input_channel, output_channel):
         super(AttentionBlock, self).__init__()
         self.conv = nn.Conv2d(input_channel, output_channel, kernel_size=3, stride=1, padding=1)
-        self.relu = nn.LeakyReLU(inplace=True)
         self.bn = nn.BatchNorm2d(output_channel)
+        self.relu = nn.LeakyReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.relu(x)
         x = self.bn(x)
+        x = self.relu(x)
         return x
 
 class MaskAttentionNet(nn.Module):
