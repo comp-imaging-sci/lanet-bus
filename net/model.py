@@ -80,6 +80,19 @@ class LogitDensenet(nn.Module):
         return [x]
 
 
+class AttentionBlock(nn.Module):
+    def __init__(self, input_channel, output_channel):
+        super(AttentionBlock, self).__init__()
+        self.conv = nn.Conv2d(input_channel, output_channel, kernel_size=3, stride=1, padding=1)
+        self.relu = nn.LeakyReLU(inplace=True)
+        self.bn = nn.BatchNorm2d(output_channel)
+
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.relu(x)
+        x = self.bn(x)
+        return x
+
 class MaskAttentionNet(nn.Module):
     """
     Learn mask attention map supervised by real masks 
@@ -110,6 +123,30 @@ class MaskAttentionNet(nn.Module):
         x_map = self.conv(x_pool)
         x_map = self.act(x_map)
         # aug_f = x + self.attention_weight * x_map * x
+        return x_map
+
+class MaskAttentionNet2(nn.Module):
+    """
+    Optimized attention mask with continuous attention blocks which shink the channel from 2048 to 1
+    """
+    def __init__(self, num_blocks=4):
+        """
+        reduction: method to reduce C channels into 1, 'mean' or 'max'
+        """
+        super(MaskAttentionNet2, self).__init__()
+        init_channels = 2048
+        channel_list = [init_channels//2**i for i in range(num_blocks)]
+        channel_list.append(1)
+        att_blocks = []
+        for i in range(len(channel_list)-1):
+            att_blocks.append(AttentionBlock(channel_list[i], channel_list[i+1]))
+        self.net = nn.Sequential(*att_blocks)
+        self.act = nn.Sigmoid()
+        initialize_weights(self)
+
+    def forward(self, x):
+        x_map = self.net(x)
+        x_map = self.act(x_map)
         return x_map
 
 class ClassificationHead(nn.Module):
@@ -164,8 +201,9 @@ class ResNetMask(nn.Module):
                  model_name,
                  num_classes, 
                  use_pretrained=True, 
+                 num_blocks=4,
                  reduction='mean', 
-                 attention_weight=0.25,
+                 attention_weight=0.5,
                  image_size=448):
         super(ResNetMask, self).__init__()
         model_info = model_name.split("_")
@@ -173,8 +211,9 @@ class ResNetMask(nn.Module):
         self.attention = model_info[1] == "attention"
         self.attention_weight = attention_weight
         self.net = LogitResnet(resnet_name, num_classes, return_logit=False, return_feature=True, use_pretrained=use_pretrained)
-        if model_name == "resnet50_attention_simple":
-            self.mask_module = MaskAttentionNet(reduction=reduction, attention_weight=attention_weight)
+        if model_name == "resnet50_attention_mask":
+            # self.mask_module = MaskAttentionNet(reduction=reduction, attention_weight=attention_weight)
+            self.mask_module = MaskAttentionNet2(num_blocks)
         elif model_name == "resnet50_rasaee_mask":
             self.mask_module = RasaeeMaskHead(image_size)
         self.c = ClassificationHead(2048, num_classes)
@@ -196,6 +235,7 @@ def get_model(model_name,
               reduction='mean', 
               attention_weight=0.25,
               image_size=448,
+              num_blocks=3,
               **kwargs):
     if model_name in ["resnet50", "resnet34", "resnet18"]:
         model = LogitResnet(model_name, num_classes, return_logit=return_logit, use_pretrained=use_pretrained, return_feature=return_feature)
@@ -223,8 +263,8 @@ def get_model(model_name,
         model.fc = nn.Linear(num_features, num_classes)
     elif model_name == "deeplabv3":
         model = DeepLabV3(num_classes=num_classes, pretrained=use_pretrained)
-    elif model_name == "resnet50_attention_simple":
-        model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, reduction=reduction, attention_weight=attention_weight)
+    elif model_name == "resnet50_attention_mask":
+        model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, reduction=reduction, attention_weight=attention_weight, num_blocks=num_blocks)
     elif model_name == "resnet50_rasaee_mask":
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, image_size=image_size)
     else:
@@ -238,7 +278,7 @@ if __name__ == "__main__":
     # inputs = torch.rand(2, 3, 32, 32) 
     # model = get_model("resnet50", 3, use_pretrained=False, return_logit=True)
     # model = models.densenet161(pretrained=False, num_classes=3) 
-    model = get_model("resnet50_rasaee_mask", 3, use_pretrained=False, return_logit=True, return_feature=True) 
+    model = get_model("resnet50_attention_mask", 3, use_pretrained=False, return_logit=True, return_feature=True) 
     # print(list(model.children())[:-1])
     # model = nn.Sequential(*list(model.children())[:-1])
     res = model(inputs)
