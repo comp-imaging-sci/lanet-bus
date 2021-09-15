@@ -170,8 +170,10 @@ def run(model_name,
         train_file = "data/train_sample_v2.txt"
         test_file = "data/test_sample_v2.txt"
     elif dataset == "MAYO":
-        train_file = "data/mayo_train_mask_conf.txt"
-        test_file = "data/mayo_test_mask_conf.txt"
+        #train_file = "data/mayo_train_mask_conf.txt"
+        #test_file = "data/mayo_test_mask_conf.txt"
+        train_file = "data/mayo_train_mask_001-150.txt"
+        test_file = "data/mayo_test_mask_001-150.txt"
     elif dataset == "test_BUSI": 
         train_file = "example/debug_BUSI.txt"
         test_file = "example/debug_BUSI.txt"

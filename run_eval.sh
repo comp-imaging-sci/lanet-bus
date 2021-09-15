@@ -1,5 +1,5 @@
 #!/bin/bash
-model_dir="MAYO_resnet50_mask_448"
+model_dir="MAYO_resnet50_mask_448_001-150"
 declare -a StringArray=("best_model.pt")
 for model in ${StringArray[@]};
 do

@@ -13,12 +13,13 @@ Executable = run_train.sh
 #requirements = (machine == "aristotle.bioen.illinois.edu")
 #requirements = (machine == "anastasio4.bioen.illinois.edu")
 #requirements = (machine == "anastasio5.bioen.illinois.edu")
+requirements = (machine == "planck.bioen.illinois.edu")
 
 Universe = vanilla
 getenv = true
 request_gpus = 1
 
-Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_448/train.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_448/train.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_448/train.err
+Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_448_001-150/train.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_448_001-150/train.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_448_001-150/train.err
 Queue

@@ -100,8 +100,8 @@ class Eval():
                 train_file = "example/debug_sample_benign.txt"
                 test_file = "example/debug_sample_benign.txt"
             elif self.dataset == "MAYO":
-                train_file = "data/mayo_train_mask_all.txt"
-                test_file = "data/mayo_test_mask_all.txt"
+                train_file = "data/mayo_train_mask_001-150.txt"
+                test_file = "data/mayo_test_mask_001-150.txt"
                 #train_file = "example/debug_MAYO.txt"
                 #test_file = "example/debug_MAYO.txt"
         else:

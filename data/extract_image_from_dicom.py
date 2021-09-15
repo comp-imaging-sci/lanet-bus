@@ -57,6 +57,7 @@ def run(data_dir, save_dir, image_size=None):
         os.makedirs(save_dir)
     images = glob.glob(data_dir+"/**/IM*", recursive=True)
     for image in images:
+        # if re.search("annotated", image):
         extract_image_from_dicom(image, save_dir, image_size)
         image_name = os.path.basename(image)
         print("{} processed!".format(image_name))
@@ -71,7 +72,7 @@ if __name__ == '__main__':
     # fpath = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/001-050/009/IM00009 color" 
     # save_dir = "test"
     # save_dir = "/Users/zongfan/Downloads/dicom_test"
-    data_dir = "/shared/anastasio5/COVID19/data/MAYO/001-050"
+    data_dir = "/shared/radon/TOP/breast_cancer_us/ultrasound/101-150"
     save_dir = "/shared/anastasio5/COVID19/data/MAYO/images"
     # extract_image_from_dicom(fpath, save_dir)
     run(data_dir, save_dir)
