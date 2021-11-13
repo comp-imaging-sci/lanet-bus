@@ -12,6 +12,7 @@ from util import batch_iou
 from collections import OrderedDict
 import re
 
+# torch.autograd.set_detect_anomaly(True)
 
 def train(model, 
           model_name, 
@@ -35,8 +36,9 @@ def train(model,
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     best_test_model = os.path.join(model_save_path, "best_model.pt") 
-    if model_name == "resnet50_mask":
-        mask_criterion = nn.L1Loss()
+    if model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+        # mask_criterion = nn.L1Loss()
+        mask_criterion = nn.BCEWithLogitsLoss().to(device)
         if mask_weight is None:
             mask_weight = 1.0 
     for epoch in range(num_epochs):
@@ -52,7 +54,7 @@ def train(model,
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
                 labels = data["label"].to(device)
-                if model_name in ["deeplabv3", "resnet50_mask"]:
+                if model_name in ["deeplabv3", "resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     masks = data["mask"].to(device)
                     # print(masks, torch.min(masks), torch.max(masks))
                 optimizer.zero_grad()
@@ -80,6 +82,10 @@ def train(model,
                         mask_loss = mask_criterion(outputs[1], masks_inter)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
+                    elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                        cls_loss = criterion(outputs[0], labels)
+                        mask_loss = mask_criterion(outputs[1], masks)
+                        loss = cls_loss + mask_loss * mask_weight
                     else:
                         loss = criterion(outputs[0], labels)
                         _, preds = torch.max(outputs[0], 1)
@@ -154,12 +160,29 @@ def run(model_name,
         dataset="BUSI",
         num_gpus=1, 
         dilute_mask=0,
-        mask_weight=None):
+        mask_weight=None,
+        use_cbam=True, 
+        use_mask=True,
+        no_channel=False,
+        reduction_ratio=16, 
+        attention_kernel_size=3, 
+        attention_num_conv=3):
     # get model 
+    if use_cbam:
+        cbam_param = dict(no_channel=no_channel, 
+                          reduction_ratio=reduction_ratio, 
+                          attention_num_conv=attention_num_conv, 
+                          attention_kernel_size=attention_kernel_size)
+    else:
+        cbam_param = {}
     model = get_model(model_name=model_name,
                       num_classes=num_classes, 
                       use_pretrained=use_pretrained, 
-                      return_logit=False).to(device)
+                      return_logit=False,
+                      use_cbam=use_cbam,
+                      use_mask=use_mask,
+                      image_size=image_size,
+                      **cbam_param).to(device)
     # load pretrained model weights
     if pretrained_weights: 
         try:
@@ -188,7 +211,7 @@ def run(model_name,
               "train": train_file, 
               "test": test_file, 
               "dataset": dataset,
-              "mask": model_name in ["deeplabv3", "resnet50_mask"],
+              "mask": model_name in ["deeplabv3", "resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
               "dilute_mask": dilute_mask,
               }
     image_datasets, data_sizes = prepare_data(config)

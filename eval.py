@@ -5,7 +5,7 @@ import fire
 import numpy as np
 from scipy import stats
 from collections import OrderedDict
-from util import batch_iou, read_image_tensor, draw_segmentation_mask, get_image_mask
+from util import batch_iou, read_image_tensor, draw_segmentation_mask, get_image_mask, show_cam_on_image
 import pandas as pd
 
 
@@ -81,7 +81,7 @@ class Eval():
                 prob = torch.nn.Sigmoid()(outputs)
             pred_mask_tensor = (prob>0.5).type(torch.int)
         else:
-            if self.model_name == "resnet50_mask":
+            if self.model_name in ["resnet50_attention_mask", "resnet50_rasaee_mask"]:
                 # interpolate mask to original size
                 outputs = torch.nn.functional.interpolate(outputs[1], size=(self.image_size, self.image_size), mode="bicubic")
                 pred_mask_tensor = (outputs>0.5).type(torch.int) 
@@ -89,8 +89,14 @@ class Eval():
                 _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
             # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
             pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
+            # pred_mask_tensor = outputs[1].detach()
+            # pred_mask_tensor = pred_mask_tensor[pred_mask_tensor > 0.5]
         draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file) 
-    
+        # img = image_tensor[0].numpy().transpose([1, 2, 0])
+        # mask = pred_mask_tensor[0].numpy()
+        # mask = mask / np.max(mask)
+        # show_cam_on_image(img, mask, mask_save_file, use_rgb=True)
+        
     def accuracy(self, test_file=None):
         if test_file is None:
             if self.dataset == "BUSI":
@@ -121,7 +127,7 @@ class Eval():
         #      |  COVID    |        |       |           |
         #      |  Pneumonia|        |       |           |
         #      ------------------------------------------
-        if self.dataset == "covidx":
+        if self.dataset == "BUSI":
             result_matrics = np.zeros((3, 3))
         elif self.dataset == "MAYO":
             result_matrics = np.zeros((2, 2)) 
