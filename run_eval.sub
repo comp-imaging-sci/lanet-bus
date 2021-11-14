@@ -13,7 +13,7 @@ Executable = run_eval.sh
 #requirements = (machine == "aristotle.bioen.illinois.edu")
 #requirements = (machine == "anastasio4.bioen.illinois.edu")
 #requirements = (machine == "anastasio5.bioen.illinois.edu")
-requirements = (machine == "curie.bioen.illinois.edu")
+#requirements = (machine == "curie.bioen.illinois.edu")
 #requirements = (machine == "radon.bioen.illinois.edu")
 
 Universe = vanilla
@@ -21,6 +21,6 @@ getenv = true
 request_gpus = 1  
 
 #Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet50_448_001-150.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet50_mask_448_001-150.out
-#Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet50_448_001-150.err
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_resnet50_attention_mask_448.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_resnet50_attention_mask_448.err
 Queue

@@ -94,8 +94,8 @@ class Eval():
     def accuracy(self, test_file=None):
         if test_file is None:
             if self.dataset == "BUSI":
-                train_file = "data/train_sample.txt"
-                test_file = "data/test_sample.txt"
+                train_file = "data/train_sample_v2.txt"
+                test_file = "data/test_sample_v2.txt"
             elif self.dataset == "test":
                 train_file = "example/debug_sample_benign.txt"
                 test_file = "example/debug_sample_benign.txt"
@@ -125,6 +125,8 @@ class Eval():
             result_matrics = np.zeros((3, 3))
         elif self.dataset == "MAYO":
             result_matrics = np.zeros((2, 2)) 
+        elif self.dataset == "BUSI":
+            result_matrics = np.zeros((3, 3))
         with torch.no_grad():
             for data in dataloader:
                 inputs = data["image"].to(self.device)
@@ -136,16 +138,16 @@ class Eval():
                 pred = int(pred.item())
                 result_matrics[tag][pred] += 1
 
-        # if self.dataset == "BUSI":
-        #     result_matrics = np.zeros((3, 3))
-        #     with torch.no_grad():
-        #         for data in dataloader:
-        #             tag = data["label"].data.cpu().numpy()[0]
-        #             img = data["image"].to(self.device)
-        #             outputs = self.model(img)
-        #             _, pred = torch.max(outputs[0], 1)
-        #             pred = int(pred.cpu().numpy()[0])
-        #             result_matrics[tag][pred] += 1
+            #if self.dataset == "BUSI":
+            #    result_matrics = np.zeros((3, 3))
+            #    with torch.no_grad():
+            #        for data in dataloader:
+            #            tag = data["label"].data.cpu().numpy()[0]
+            #            img = data["image"].to(self.device)
+            #            outputs = self.model(img)
+            #            _, pred = torch.max(outputs[0], 1)
+            #            pred = int(pred.cpu().numpy()[0])
+            #            result_matrics[tag][pred] += 1
             # precision: TP / (TP + FP)
             print("result matrics: ", result_matrics)
             # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
