@@ -200,7 +200,7 @@ def deprocess_image(img):
     return np.uint8(img * 255)
 
 
-def show_cam_on_image(img, mask, mask_save_file, use_rgb=False, colormap=cv2.COLORMAP_JET):
+def show_mask_on_image(img, mask, mask_save_file, use_rgb=False, colormap=cv2.COLORMAP_JET):
     heatmap = cv2.applyColorMap(np.uint8(255 * mask), colormap)
     if use_rgb:
         heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
