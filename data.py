@@ -89,16 +89,19 @@ class MAYO_dataset(Dataset):
         skip_padding: number of pixels to skip along each side: left, right, top, bottom
         """
         df = pd.read_csv(csv_file, sep=",", header=None)
-        df.columns = ["img", "label", "annotate"]
+        if len(df.columns == 3):
+            df.columns = ["img", "label", "annotate"]
+        elif len(df.columns) == 3:
+            df.columns = ["img", "label"]
         self._img_files = df["img"].tolist()
         self._img_labels = df["label"].tolist()
         self._transform = transform
-        self._mask = mask 
-        self._mask_transform = mask_transform
-        self._mask_dilute = mask_dilute
-        self._crop_image_ratio = crop_image_ratio
-        self._skip_padding = skip_padding
+        self._mask = mask and ("annotate" in df.columns)
         if mask:
+            self._mask_transform = mask_transform
+            self._mask_dilute = mask_dilute
+            self._crop_image_ratio = crop_image_ratio
+            self._skip_padding = skip_padding
             mask_str = df["annotate"].tolist()
             self._mask_coord = np.array([x.split(":") for x in mask_str], dtype=int)
         #     self._mask_coord = parse_mayo_mask_box(mask_annotate_file, mask_annotate_dir)
@@ -155,6 +158,70 @@ class MAYO_dataset(Dataset):
                 # mask = mask * label_id  # normal case is identical to backaground
         return {"image": img, "label": label_id, "mask": mask}
 
+
+class MaskDataset(Dataset):
+    def __init__(self, csv_file, dataset_name="BIRD", transform=None, mask_transform=None, mask_dilute=0, image_size=224):
+        """
+        csv_file: csv file containing image file path and corresponding label
+        transform: transform for image
+        mask_transform: transformation for mask
+        mask_dilute: dilute mask with given distance in all directions
+        """
+        df = pd.read_csv(csv_file, sep=",", header=None)
+        df.columns = ["img", "label", "mask"]
+        self._img_files = df["img"].tolist()
+        self._img_labels = df["label"].tolist()
+        self._img_masks = df["mask"].tolist()
+        self._transform = transform
+        self._mask_transform = mask_transform
+        self._mask_dilute = mask_dilute
+        self._img_size = image_size
+        self._dataset_name = dataset_name
+        if dataset_name == "BIRD":
+            self._label = BIRD_LABELS
+        elif dataset_name == "BUSI":
+            self._label = BUSI_LABELS
+        else:
+            print("Unknown dataset name!")
+
+    def __len__(self):
+        return len(self._img_files)
+
+    def __getitem__(self, idx):
+        image_name = self._img_files[idx]
+        assert os.path.exists(image_name), "Image file not found!"
+        # load image
+        img = Image.open(image_name)
+        img = img.convert("RGB")
+        label = self._img_labels[idx]
+        label_id = self._label.index(label)
+        #onehot_id = torch.nn.functional.one_hot(torch.Tensor(label_id), len(LABELS))
+        # get the identical random seed for both image and mask
+        seed = random.randint(0, 2147483647)
+        if self._transform:
+            # state = torch.get_rng_state()
+            random.seed(seed)
+            torch.manual_seed(seed)
+            img = self._transform(img)
+        # load mask
+        if self._img_masks[idx] != "none":
+            mask = get_image_mask(self._img_masks[idx], dataset=self._dataset_name)
+            mask = dilute_mask(mask, dilute_distance=self._mask_dilute)
+            # assign class label
+            mask = Image.fromarray(mask)
+            if_mask = True
+            if self._mask_transform:
+                random.seed(seed)
+                torch.manual_seed(seed)
+                # torch.set_rng_state(state)
+                mask = self._mask_transform(mask)
+                mask = mask.type(torch.float)
+                # mask = mask * label_id  # normal case is identical to backaground
+        else:
+            mask = torch.zeros((1, self._img_size, self._img_size))
+            if_mask = False
+        return {"image": img, "label": label_id, "mask": mask, "if_mask": if_mask}
+        
 
 def prepare_data(config):
     """
@@ -224,6 +291,17 @@ def prepare_data(config):
                                         #   mask_annotate_dir=config.get("mask_anno_dir", None), 
                                         #   mask_annotate_file=config.get("mask_annotate_file", None)
                                           ) for x in ["train", "test"]}
+    elif config["dataset"] == "All":
+        train_ds = []
+        test_ds = []
+        for x in ["train", "test"]:
+            for cur_ds in config[x]:
+                if re.search("mayo", cur_ds):
+                    ds_type = "MAYO"
+                elif re.search("busi", cur_ds):
+                    ds_type = "BUSI"
+
+        
     else:
         print("Unknown dataset")
     # class_names = image_datasets["train"].classes 

@@ -12,6 +12,7 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 import cv2
 
 BUSI_LABELS = ["normal", "malignant", "benign"]
+BUSI_LABELS_BINARY = ["malignant", "benign"]
 ORIG_LABELS = ["malignant", "benign"]
 MAYO_LABELS = ["Malignant", "Benign"]
 
@@ -32,22 +33,39 @@ class Eval():
                  image_size=224, 
                  device="cpu",
                  dataset="covidx",
-                 multi_gpu=False,):
+                 multi_gpu=False,
+                 use_cbam=True, 
+                 use_mask=True,
+                 no_channel=False,):
         super(Eval, self).__init__()
         self.model_name = model_name
         self.num_classes = num_classes
         self.model_weights = model_weights
-        self.image_size=image_size
-        self.device=device
+        self.image_size = image_size
+        self.device = device
         self.dataset = dataset
         self.multi_gpu = multi_gpu
+        self.use_cbam = use_cbam
+        self.use_mask = use_mask
+        self.no_channel = no_channel 
         self.load_model()
     
     def load_model(self):
+        if self.use_cbam:
+            cbam_param = dict(no_channel=self.no_channel, 
+                          reduction_ratio=16, 
+                          attention_num_conv=3, 
+                          attention_kernel_size=3)
+        else:
+            cbam_param = {}
         self.model = get_model(model_name=self.model_name, 
                           num_classes=self.num_classes, 
                           use_pretrained=True, 
-                          return_logit=False).to(self.device)
+                          return_logit=False,
+                          use_cbam=self.use_cbam,
+                          use_mask=self.use_mask,
+                          image_size=self.image_size,
+                          **cbam_param).to(self.device)
         state_dict=torch.load(self.model_weights, map_location=torch.device(self.device))
         if self.multi_gpu:
             new_state_dict = OrderedDict()
@@ -98,11 +116,15 @@ class Eval():
             # mask = mask / np.max(mask)
             show_mask_on_image(img, mask, mask_save_file, use_rgb=False)
         
-    def accuracy(self, test_file=None):
+    def accuracy(self, test_file=None, binary_class=False):
         if test_file is None:
             if self.dataset == "BUSI":
-                train_file = "data/train_sample.txt"
-                test_file = "data/test_sample.txt"
+                if binary_class:
+                    train_file = "data/busi_train_binary.txt"
+                    test_file = "data/busi_test_binary.txt"
+                else:
+                    train_file = "data/train_sample.txt"
+                    test_file = "data/test_sample.txt"
             elif self.dataset == "test":
                 train_file = "example/debug_sample_benign.txt"
                 test_file = "example/debug_sample_benign.txt"
@@ -129,7 +151,10 @@ class Eval():
         #      |  Pneumonia|        |       |           |
         #      ------------------------------------------
         if self.dataset == "BUSI":
-            result_matrics = np.zeros((3, 3))
+            if binary_class:
+                result_matrics = np.zeros((2, 2))  
+            else:
+                result_matrics = np.zeros((3, 3)) 
         elif self.dataset == "MAYO":
             result_matrics = np.zeros((2, 2)) 
         with torch.no_grad():
@@ -178,12 +203,12 @@ class Eval():
                 res_speci.append(speci)
                 res_sens.append(sens)
                 f1_score.append(f1)
-        if self.dataset == "BUSI":
+        if (self.dataset == "BUSI") and not binary_class:
             print('Precision: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_acc[0],res_acc[1],res_acc[2], np.mean(res_acc)))
             print('Sensitivity: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_sens[0],res_sens[1],res_sens[2], np.mean(res_sens)))
             print('Specificity: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_speci[0],res_speci[1],res_speci[2], np.mean(res_speci)))
             print('F1 score: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(f1_score[0],f1_score[1],f1_score[2], np.mean(f1_score)))          
-        elif self.dataset == 'MAYO':
+        elif (self.dataset == 'MAYO') or binary_class:
             print('Precision: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_acc[0],res_acc[1], np.mean(res_acc)))
             print('Sensitivity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_sens[0], res_sens[1], np.mean(res_sens)))
             print('Specificity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_speci[0],res_speci[1], np.mean(res_speci)))

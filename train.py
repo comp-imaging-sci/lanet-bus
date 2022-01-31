@@ -84,8 +84,11 @@ def train(model,
                         _, preds = torch.max(outputs[0], 1)
                     elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask"]:
                         cls_loss = criterion(outputs[0], labels)
+                        featmap_size = outputs[1].shape[-1]
+                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear")
                         mask_loss = mask_criterion(outputs[1], masks)
                         loss = cls_loss + mask_loss * mask_weight
+                        _, preds = torch.max(outputs[0], 1)
                     else:
                         loss = criterion(outputs[0], labels)
                         _, preds = torch.max(outputs[0], 1)
@@ -190,8 +193,8 @@ def run(model_name,
         except:
             model = load_weights(model, pretrained_weights, multi_gpu=True, device=device, num_classes=num_classes)
     if dataset == "BUSI":
-        train_file = "data/train_sample.txt"
-        test_file = "data/test_sample.txt"
+        train_file = "data/busi_train_sample.txt"
+        test_file = "data/busi_test_sample.txt"
     elif dataset == "MAYO":
         train_file = "data/mayo_train_mask.txt"
         test_file = "data/mayo_test_mask.txt"
@@ -203,6 +206,10 @@ def run(model_name,
         train_file = "example/debug_MAYO_mask.txt"
         test_file = "example/debug_MAYO_mask.txt"
         dataset = "MAYO"
+    elif dataset == "All":
+        train_file = ["data/mayo_train_mask.txt", "data/busi_train_sample.txt"]
+        test_file = ["data/mayo_test_mask.txt", "data/busi_test_sample.txt"]
+        dataset = "All"
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
         # deploy model on multi-gpus

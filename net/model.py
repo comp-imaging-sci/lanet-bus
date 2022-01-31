@@ -153,6 +153,7 @@ class MaskAttentionNet2(nn.Module):
         x_map = self.act(x_map)
         return x_map
 
+
 class ClassificationHead(nn.Module):
     def __init__(self, inchannels, num_classes):
         super(ClassificationHead, self).__init__()
@@ -183,12 +184,11 @@ class RasaeeUpsampleBlock(nn.Module):
 
 class RasaeeMaskHead(nn.Module):
     """https://arxiv.org/abs/2108.04345"""
-    def __init__(self, image_size=448):
+    def __init__(self, map_size=448):
         super(RasaeeMaskHead, self).__init__()
-        self.image_size = image_size
         self.block1 = RasaeeUpsampleBlock(2048, 256, 16)
         self.block2 = RasaeeUpsampleBlock(256, 64, 112)
-        self.block3 = RasaeeUpsampleBlock(64, 1, image_size)
+        self.block3 = RasaeeUpsampleBlock(64, 1, map_size)
         self.sig = nn.Sigmoid()
         initialize_weights(self)
     
@@ -208,7 +208,7 @@ class ResNetMask(nn.Module):
                  num_blocks=3,
                  reduction='mean', 
                  attention_weight=0.5,
-                 image_size=448):
+                 map_size=448):
         super(ResNetMask, self).__init__()
         model_info = model_name.split("_")
         resnet_name = model_info[0]
@@ -219,7 +219,7 @@ class ResNetMask(nn.Module):
             # self.mask_module = MaskAttentionNet(reduction=reduction, attention_weight=attention_weight)
             self.mask_module = MaskAttentionNet2(num_blocks)
         elif model_name == "resnet50_rasaee_mask":
-            self.mask_module = RasaeeMaskHead(image_size)
+            self.mask_module = RasaeeMaskHead(map_size)
         self.c = ClassificationHead(2048, num_classes)
 
     def forward(self, x):
@@ -237,7 +237,7 @@ class ResNetCbam(nn.Module):
                  model_name,
                  num_classes, 
                  use_pretrained=True, 
-                 image_size=448,
+                 map_size=448,
                  use_cbam=True, 
                  use_mask=True,
                  no_channel=False,
@@ -269,13 +269,16 @@ class ResNetCbam(nn.Module):
         self.fc = nn.Linear(num_features, num_classes)
         if use_mask:
             saliency_use_cam = not use_cbam
-            self.saliency = SaliencyNet(planes=planes, map_size=image_size, use_cbam=saliency_use_cam, cbam_param=cbam_param)
+            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=saliency_use_cam, cbam_param=cbam_param)
 
     def forward(self, x):
         x, fs = self.net(x)
+        x = self.avgpool(x)
         if self._use_mask:
             mask = self.saliency(fs)
-        x = self.avgpool(x)
+            # apply attention on the logit feature
+            if x.shape[0] == mask.shape[0]:
+                x = x + mask * x 
         x = torch.flatten(x, 1)
         x = self.fc(x)
         if self._use_mask:
@@ -291,7 +294,7 @@ def get_model(model_name,
               return_feature=False, 
               reduction='mean', 
               attention_weight=0.25,
-              image_size=448,
+              map_size=8,
               num_blocks=3,
               **kwargs):
     if model_name in ["resnet50", "resnet34", "resnet18"]:
@@ -323,9 +326,9 @@ def get_model(model_name,
     elif model_name == "resnet50_attention_mask":
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, reduction=reduction, attention_weight=attention_weight, num_blocks=num_blocks)
     elif model_name == "resnet50_rasaee_mask":
-        model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, image_size=image_size)
+        model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size)
     elif model_name in ["resnet18_cbam_mask", "resnet18_cbam", "resnet50_cbam_mask", "resnet50_cbam"]:
-        model = ResNetCbam(model_name, num_classes, use_pretrained=use_pretrained, image_size=image_size,
+        model = ResNetCbam(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size,
                            use_cbam=kwargs.get("use_cbam", False), 
                            use_mask=kwargs.get("use_mask", True),
                            no_channel=kwargs.get("no_channel", True),

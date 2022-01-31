@@ -122,7 +122,7 @@ class CBAM(nn.Module):
 
 class SaliencyNet(nn.Module):
     # upsmaple and concatenate intermediate features, then apply conv to predict the saliency map 
-    def __init__(self, map_size, planes=None, use_cbam=False, cbam_param=None):
+    def __init__(self, map_size, planes=None, use_cbam=False, cbam_param=None, device="cpu"):
         # planes: channels of each features 
         super(SaliencyNet, self).__init__()
         # self._use_cbam = use_cbam
@@ -131,7 +131,7 @@ class SaliencyNet(nn.Module):
                             reduction_ratio=cbam_param.get("reduction_ratio", 16), 
                             no_channel=cbam_param["no_channel"],
                             attention_kernel_size=cbam_param.get("attention_kernel_size", 3),
-                            attention_num_conv=cbam_param.get("attention_num_conv", 3)) for plane in planes]
+                            attention_num_conv=cbam_param.get("attention_num_conv", 3)).to(device) for plane in planes]
         self.upsample = nn.Upsample([map_size, map_size], mode="bilinear", align_corners=True)
         self.conv = nn.Conv2d(4, 1, kernel_size=3, stride=1, padding=1)
         self.bn = nn.BatchNorm2d(1)

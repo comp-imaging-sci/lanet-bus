@@ -11,6 +11,9 @@ do
                --device="cpu" \
                --dataset="BUSI" \
                --multi_gpu=False \
+               --use_cbam=False \
+               --use_mask=False \
+               --no_channel=True \ 
                saliency \
                --image_path="/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/malignant/malignant (2).png" \
                --saliency_file="test/test_saliency.png" \
