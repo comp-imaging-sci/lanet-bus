@@ -12,6 +12,7 @@ from util import batch_iou
 from collections import OrderedDict
 import re
 
+# torch.autograd.set_detect_anomaly(True)
 
 def train(model, 
           model_name, 
@@ -35,8 +36,9 @@ def train(model,
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     best_test_model = os.path.join(model_save_path, "best_model.pt") 
-    if model_name == "resnet50_mask":
-        mask_criterion = nn.L1Loss()
+    if model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+        # mask_criterion = nn.L1Loss()
+        mask_criterion = nn.BCEWithLogitsLoss().to(device)
         if mask_weight is None:
             mask_weight = 1.0 
     for epoch in range(num_epochs):
@@ -52,7 +54,7 @@ def train(model,
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
                 labels = data["label"].to(device)
-                if model_name in ["deeplabv3", "resnet50_mask"]:
+                if model_name in ["deeplabv3", "resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     masks = data["mask"].to(device)
                     # print(masks, torch.min(masks), torch.max(masks))
                 optimizer.zero_grad()
@@ -78,6 +80,11 @@ def train(model,
                         featmap_size = outputs[1].shape[-1]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear")
                         mask_loss = mask_criterion(outputs[1], masks_inter)
+                        loss = cls_loss + mask_loss * mask_weight
+                        _, preds = torch.max(outputs[0], 1)
+                    elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                        cls_loss = criterion(outputs[0], labels)
+                        mask_loss = mask_criterion(outputs[1], masks)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
                     else:
@@ -154,12 +161,29 @@ def run(model_name,
         dataset="BUSI",
         num_gpus=1, 
         dilute_mask=0,
-        mask_weight=None):
+        mask_weight=None,
+        use_cbam=True, 
+        use_mask=True,
+        no_channel=False,
+        reduction_ratio=16, 
+        attention_kernel_size=3, 
+        attention_num_conv=3):
     # get model 
+    if use_cbam:
+        cbam_param = dict(no_channel=no_channel, 
+                          reduction_ratio=reduction_ratio, 
+                          attention_num_conv=attention_num_conv, 
+                          attention_kernel_size=attention_kernel_size)
+    else:
+        cbam_param = {}
     model = get_model(model_name=model_name,
                       num_classes=num_classes, 
                       use_pretrained=use_pretrained, 
-                      return_logit=False).to(device)
+                      return_logit=False,
+                      use_cbam=use_cbam,
+                      use_mask=use_mask,
+                      image_size=image_size,
+                      **cbam_param).to(device)
     # load pretrained model weights
     if pretrained_weights: 
         try:
@@ -167,20 +191,24 @@ def run(model_name,
         except:
             model = load_weights(model, pretrained_weights, multi_gpu=True, device=device, num_classes=num_classes)
     if dataset == "BUSI":
-        train_file = "data/train_sample_v2.txt"
-        test_file = "data/test_sample_v2.txt"
+        if num_classes == 3:
+            train_file = "data/train_sample_v2.txt"
+            test_file  = "data/test_sample_v2.txt"
+        else:
+            train_file = "data/busi_train_binary.txt"
+            test_file  = "data/busi_test_binary.txt"
     elif dataset == "MAYO":
         #train_file = "data/mayo_train_mask_conf.txt"
         #test_file = "data/mayo_test_mask_conf.txt"
         train_file = "data/mayo_train_mask_001-150.txt"
-        test_file = "data/mayo_test_mask_001-150.txt"
+        test_file  = "data/mayo_test_mask_001-150.txt"
     elif dataset == "test_BUSI": 
         train_file = "example/debug_BUSI.txt"
-        test_file = "example/debug_BUSI.txt"
+        test_file  = "example/debug_BUSI.txt"
         dataset = "BUSI"
     elif dataset == "test_MAYO":
         train_file = "example/debug_MAYO_mask.txt"
-        test_file = "example/debug_MAYO_mask.txt"
+        test_file  = "example/debug_MAYO_mask.txt"
         dataset = "MAYO"
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
@@ -190,14 +218,17 @@ def run(model_name,
               "train": train_file, 
               "test": test_file, 
               "dataset": dataset,
-              "mask": model_name in ["deeplabv3", "resnet50_mask"],
+              "mask": model_name in ["deeplabv3", "resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
               "dilute_mask": dilute_mask,
               }
     image_datasets, data_sizes = prepare_data(config)
     dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=0,   drop_last=True) for x in ["train", "test"]}
     # loss function
     if dataset == "BUSI":
-        cls_weight = [2.0, 1.0, 1.0]
+        if num_classes == 3:
+            cls_weight = [2.0, 1.0, 1.0]
+        else:
+            cls_weight = [1.0, 1.0]
     elif dataset == "MAYO":
         cls_weight = [5.0, 1.0]
     if model_name == "deeplabv3":

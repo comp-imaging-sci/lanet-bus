@@ -15,7 +15,10 @@ from util import get_image_mask, dilute_mask, parse_mayo_mask_box
 
 
 ORI_LABELS = ["malignant", "benign"] # ORI dataset labels: https://data.mendeley.com/datasets/wmy84gzngw/1
-BUSI_LABELS = ["normal", "malignant", "benign"] # BUSI dataset labels: https://bcdr.eu/information/downloads
+# 3 class
+# BUSI_LABELS = ["normal", "malignant", "benign"] # BUSI dataset labels: https://bcdr.eu/information/downloads
+# binary
+BUSI_LABELS = ["malignant", "benign"]
 MAYO_LABELS = ["Malignant", "Benign"] 
 
 # TODO: add gaussian noise or white noise to mask 

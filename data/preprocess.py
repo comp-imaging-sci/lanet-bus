@@ -164,6 +164,7 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
         # get image patient id and disease type
         filename = os.path.basename(image)
         patient_id = re.search("([0-9\-]+)_IM.*\.png", filename).group(1)
+        # make sure patient id is annotated 
         if patient_id not in info:
             continue
         patient_type = info[patient_id]
@@ -196,7 +197,8 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
             if cur_video_info["start"] > int(frame_id) or int(frame_id) > cur_video_info["end"]:
                 skip = True
         else:
-            skip = True
+            # only use video image for training
+            skip = False
         if not skip: 
             valid_images.append(image)
             valid_image_types.append(patient_type)
@@ -247,9 +249,8 @@ if __name__ == "__main__":
     video_csv = "video_info.csv"
     only_keep_square_image = True
     only_keep_conf = True
-    split_by = "image"
-    generate_dataset_files(image_dir, save_dir, anno_file, video_csv, seed=seed, skip_keywords_list=skip_keywords_list,
-    only_keep_conf=only_keep_conf, only_keep_square_image=only_keep_square_image, mask_annotate_dir=mask_anno_dir, split_by=split_by)
+    split_by = "vid"
+    # generate_dataset_files(image_dir, save_dir, anno_file, video_json, seed=seed, skip_keywords_list=skip_keywords_list,only_keep_conf=only_keep_conf, only_keep_square_image=only_keep_square_image, mask_annotate_dir=mask_anno_dir, split_by=split_by)
     # video_csv = "video_info.csv"
     # json2csv(video_json, video_csv)
 

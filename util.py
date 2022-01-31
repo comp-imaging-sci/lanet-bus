@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.metrics import jaccard_score
 import cv2 
 import os, re
+from torchvision.transforms import Compose, Normalize, ToTensor
 
 
 # evaluate segmentation performance via IOU
@@ -180,6 +181,40 @@ def dilute_mask(mask, dilute_distance=0):
     diluted = l_dilute | r_dilute | u_dilute | d_dilute
     return diluted
 
+
+def preprocess_image(img, mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]):
+    preprocessing = Compose([
+        ToTensor(),
+        Normalize(mean=mean, std=std)
+    ])
+    return preprocessing(img.copy()).unsqueeze(0)
+
+
+def deprocess_image(img):
+    """ see https://github.com/jacobgil/keras-grad-cam/blob/master/grad-cam.py#L65 """
+    img = img - np.mean(img)
+    img = img / (np.std(img) + 1e-5)
+    img = img * 0.1
+    img = img + 0.5
+    img = np.clip(img, 0, 1)
+    return np.uint8(img * 255)
+
+
+def show_mask_on_image(img, mask, mask_save_file, use_rgb=False, colormap=cv2.COLORMAP_JET):
+    heatmap = cv2.applyColorMap(np.uint8(255 * mask), colormap)
+    if use_rgb:
+        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+    heatmap = np.float32(heatmap) / 255
+
+    if np.max(img) > 1:
+        raise Exception(
+            "The input image should np.float32 in the range [0, 1]")
+
+    cam = heatmap + img
+    cam = cam / np.max(cam)
+    result =  np.uint8(255 * cam)
+    cv2.imwrite(mask_save_file, result)
+    
 
 if __name__ == "__main__": 
     from PIL import Image

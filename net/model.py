@@ -3,8 +3,12 @@ import torch.nn as nn
 from torchvision import models
 try:    
     from .seg_net import DeepLabV3
+    from .resnet_attention import resnet18, resnet50 
+    from .attention_net import SaliencyNet
 except:
     from seg_net import DeepLabV3
+    from resnet_attention import resnet18, resnet50
+    from attention_net import SaliencyNet
 
 
 def initialize_weights(net):
@@ -80,17 +84,17 @@ class LogitDensenet(nn.Module):
         return [x]
 
 
-class AttentionBlock(nn.Module):
+class ConvBlock(nn.Module):
     def __init__(self, input_channel, output_channel):
-        super(AttentionBlock, self).__init__()
+        super(ConvBlock, self).__init__()
         self.conv = nn.Conv2d(input_channel, output_channel, kernel_size=3, stride=1, padding=1)
-        self.relu = nn.LeakyReLU(inplace=True)
         self.bn = nn.BatchNorm2d(output_channel)
+        self.relu = nn.LeakyReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.relu(x)
         x = self.bn(x)
+        x = self.relu(x)
         return x
 
 class MaskAttentionNet(nn.Module):
@@ -127,19 +131,19 @@ class MaskAttentionNet(nn.Module):
 
 class MaskAttentionNet2(nn.Module):
     """
-    Optimized attention mask with continuous attention blocks which shink the channel from 2048 to 1
+    Optimized attention mask with continuous attention blocks which shrink the channel from 2048 to 1
     """
-    def __init__(self, num_blocks=3):
+    def __init__(self, num_blocks=4):
         """
         reduction: method to reduce C channels into 1, 'mean' or 'max'
         """
         super(MaskAttentionNet2, self).__init__()
         init_channels = 2048
-        channel_list = [init_channels//4**i for i in range(num_blocks)]
+        channel_list = [init_channels//2**i for i in range(num_blocks)]
         channel_list.append(1)
         att_blocks = []
         for i in range(len(channel_list)-1):
-            att_blocks.append(AttentionBlock(channel_list[i], channel_list[i+1]))
+            att_blocks.append(ConvBlock(channel_list[i], channel_list[i+1]))
         self.net = nn.Sequential(*att_blocks)
         self.act = nn.Sigmoid()
         initialize_weights(self)
@@ -201,7 +205,7 @@ class ResNetMask(nn.Module):
                  model_name,
                  num_classes, 
                  use_pretrained=True, 
-                 num_blocks=4,
+                 num_blocks=3,
                  reduction='mean', 
                  attention_weight=0.5,
                  image_size=448):
@@ -222,10 +226,62 @@ class ResNetMask(nn.Module):
         _, x = self.net(x)
         mask = self.mask_module(x)
         if self.attention:
-            #x = x + self.attention_weight * mask * x
-            x = x * mask 
+            # x = x + self.attention_weight * mask * x
+            x = x * mask
         x = self.c(x)
-        return x, mask
+        return [x, mask]
+
+
+class ResNetCbam(nn.Module):
+    def __init__(self, 
+                 model_name,
+                 num_classes, 
+                 use_pretrained=True, 
+                 image_size=448,
+                 use_cbam=True, 
+                 use_mask=True,
+                 no_channel=False,
+                 reduction_ratio=16, 
+                 attention_kernel_size=3, 
+                 attention_num_conv=3):
+        super(ResNetCbam, self).__init__()
+        if model_name in ["resnet18_cbam_mask", "resnet18_cbam"]:
+            model = resnet18
+            planes = [64, 128, 256, 512]
+        elif model_name in ["resnet50_cbam_mask", "resnet50_cbam"]:
+            model = resnet50
+            planes = [256, 512, 1024, 2048]
+        self._use_cbam = use_cbam
+        self._use_mask = use_mask
+        cbam_param = dict(sp_kernel_size=attention_kernel_size, 
+                          sp_num_conv=attention_num_conv,
+                          no_channel=no_channel,
+                          reduction_ratio=reduction_ratio,
+                          )
+        self.net = model(pretrained=use_pretrained, 
+                        use_cbam=use_cbam,
+                        cbam_param=cbam_param,
+                        return_all_feature=True)
+        # self.net = model
+        num_features = planes[-1]
+        # self.net = nn.Sequential(*list(model.children())[:-2])
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(num_features, num_classes)
+        if use_mask:
+            saliency_use_cam = not use_cbam
+            self.saliency = SaliencyNet(planes=planes, map_size=image_size, use_cbam=saliency_use_cam, cbam_param=cbam_param)
+
+    def forward(self, x):
+        x, fs = self.net(x)
+        if self._use_mask:
+            mask = self.saliency(fs)
+        x = self.avgpool(x)
+        x = torch.flatten(x, 1)
+        x = self.fc(x)
+        if self._use_mask:
+            return [x, mask]
+        else:
+            return [x]
 
 
 def get_model(model_name, 
@@ -268,6 +324,14 @@ def get_model(model_name,
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, reduction=reduction, attention_weight=attention_weight, num_blocks=num_blocks)
     elif model_name == "resnet50_rasaee_mask":
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, image_size=image_size)
+    elif model_name in ["resnet18_cbam_mask", "resnet18_cbam", "resnet50_cbam_mask", "resnet50_cbam"]:
+        model = ResNetCbam(model_name, num_classes, use_pretrained=use_pretrained, image_size=image_size,
+                           use_cbam=kwargs.get("use_cbam", False), 
+                           use_mask=kwargs.get("use_mask", True),
+                           no_channel=kwargs.get("no_channel", True),
+                           reduction_ratio=kwargs.get("reduction_ratio", 16), 
+                           attention_kernel_size=kwargs.get("attention_kernel_size", 3), 
+                           attention_num_conv=kwargs.get("attention_num_conv", 3))
     else:
         print("unknown model name!")
     return model
@@ -275,15 +339,22 @@ def get_model(model_name,
 # def decoder()
 
 if __name__ == "__main__":
+    torch.manual_seed(0)
     inputs = torch.rand(2, 3, 224, 224)
+    inputs = torch.ones(2, 3, 224, 224) * 0.5
     # inputs = torch.rand(2, 3, 32, 32) 
-    # model = get_model("resnet50", 3, use_pretrained=False, return_logit=True)
+    # model = get_model("resnet18", 3, use_pretrained=True, return_logit=True)
     # model = models.densenet161(pretrained=False, num_classes=3) 
-    model = get_model("resnet50_attention_mask", 3, use_pretrained=False, return_logit=True, return_feature=True) 
+    # model = get_model("resnet50_attention_mask", 3, use_pretrained=False, return_logit=True, return_feature=True) 
     # print(list(model.children())[:-1])
     # model = nn.Sequential(*list(model.children())[:-1])
+    model = get_model(model_name="resnet18_cbam_mask", use_pretrained=True, image_size=224, num_classes=3, use_cbam=False, use_mask=True, no_channel=True, attention_kernel_size=3, attention_num_conv=3)
     res = model(inputs)
-    print(res[0].shape, res[1].shape)
+    try:
+        print(res[0].shape, res[1].shape)
+    except:
+        print(res.shape)
+    print(res)
     # for name, param in model.named_parameters():
     #     if param.requires_grad == True:
     #         print("\t", name, param.shape)
