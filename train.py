@@ -167,6 +167,7 @@ def run(model_name,
         use_cbam=True, 
         use_mask=True,
         no_channel=False,
+        map_size=14,
         reduction_ratio=16, 
         attention_kernel_size=3, 
         attention_num_conv=3):
@@ -184,7 +185,7 @@ def run(model_name,
                       return_logit=False,
                       use_cbam=use_cbam,
                       use_mask=use_mask,
-                      image_size=image_size,
+                      map_size=map_size,
                       **cbam_param).to(device)
     # load pretrained model weights
     if pretrained_weights: 
