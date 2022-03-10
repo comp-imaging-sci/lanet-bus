@@ -20,7 +20,7 @@ Universe = vanilla
 getenv = true
 request_gpus = 1
 
-Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet50_256_tfs/train.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet50_256_tfs/train.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet50_256_tfs/train.err
+#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet50_cbam_mask_256_ma/train.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp6_train.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp6_train.err
 Queue

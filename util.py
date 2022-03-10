@@ -115,7 +115,7 @@ def get_image_mask(image_name, image_size=None, dataset="BUSI", mask_coord=None)
     """
     Get image mask by giving image name
     dataset: the name of the dataset
-    mask_coord: dict to save the mask box information
+    mask_coord: list of mask box coordinates, xyxy
     """
     image_dir = os.path.dirname(image_name)
     image_base_name = os.path.basename(image_name).replace(".png", "")
@@ -149,7 +149,7 @@ def get_image_mask(image_name, image_size=None, dataset="BUSI", mask_coord=None)
         image = cv2.imread(image_name)
         img_h, img_w, _ = image.shape
         # set mask region as 255
-        mask = np.zeros((img_h, img_w, 3))
+        mask = np.zeros((img_h, img_w))
         mask[box[1]:box[3], box[0]:box[2]] = 255
         # f.close()
     # mask = mask / 255
