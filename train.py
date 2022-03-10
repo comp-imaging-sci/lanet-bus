@@ -105,8 +105,9 @@ def train(model,
                         loss.backward()
                         optimizer.step()
                 running_loss += loss.item() * inputs.size(0)
-                cls_loss += cls_loss.item() * inputs.size(0)
-                mask_loss += mask_loss.item() * inputs.size(0)
+                if model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                    cls_loss += cls_loss.item() * inputs.size(0)
+                    mask_loss += mask_loss.item() * inputs.size(0)
                 # print(preds, labels.data, torch.sum(preds == labels.data))
                 if model_name == "deeplabv3":
                     # match_ratio = np.sum(pred_mask == real_mask) / (input_size ** 2)  # mean via image size

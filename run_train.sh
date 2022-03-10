@@ -1,13 +1,13 @@
 #!/bin/bash
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
-model_name="resnet50"
+model_name="resnet50_cbam_mask"
 image_size=256
 map_size=8
 datatype="All"
-exp="exp6"
+exp="exp7"
 num_classes=2
 use_cbam=False
-use_mask=False
+use_mask=True
 no_channel=False
 save_path="${datatype}_train/${exp}-${model_name}-cbam=${use_cbam}-no_channel=${no_channel}-size=${image_size}-cls=${num_classes}"
 if [ ! -d $save_path ]; then
