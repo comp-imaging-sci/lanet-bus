@@ -56,6 +56,7 @@ def train(model,
                 labels = data["label"].to(device)
                 if model_name in ["deeplabv3", "resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     masks = data["mask"].to(device)
+                    mask_exist = data["mask_exist"].to(device)
                     # print(masks, torch.min(masks), torch.max(masks))
                 optimizer.zero_grad()
                 # if use_cent_loss:
@@ -85,8 +86,12 @@ def train(model,
                     elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask"]:
                         cls_loss = criterion(outputs[0], labels)
                         featmap_size = outputs[1].shape[-1]
+                        batch_size = outputs[0].shape[0]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear")
-                        mask_loss = mask_criterion(outputs[1], masks)
+                        # mute output if mask not exist
+                        mask_exist = mask_exist.view([batch_size, 1, 1, 1])
+                        mask_pred = outputs[1] * mask_exist 
+                        mask_loss = mask_criterion(mask_pred, masks_inter)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
                     else:
@@ -227,8 +232,8 @@ def run(model_name,
     # loss function
     if dataset == "BUSI":
         cls_weight = [2.0, 1.0, 1.0]
-    elif dataset == "MAYO":
-        cls_weight = [5.0, 1.0]
+    elif dataset in ["MAYO", "All"]:
+        cls_weight = [4.0, 1.0]
     if model_name == "deeplabv3":
         # criterion = nn.NLLLoss(reduction="mean").to(device)
         criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(5.0)).to(device)

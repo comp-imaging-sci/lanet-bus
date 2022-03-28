@@ -273,12 +273,12 @@ class ResNetCbam(nn.Module):
 
     def forward(self, x):
         x, fs = self.net(x)
-        x = self.avgpool(x)
         if self._use_mask:
             mask = self.saliency(fs)
             # apply attention on the logit feature
             if x.shape[0] == mask.shape[0]:
                 x = x + mask * x 
+        x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
         if self._use_mask:

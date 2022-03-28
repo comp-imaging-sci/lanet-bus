@@ -116,21 +116,18 @@ class Eval():
             # mask = mask / np.max(mask)
             show_mask_on_image(img, mask, mask_save_file, use_rgb=False)
         
-    def accuracy(self, test_file=None, binary_class=False):
+    def accuracy(self, test_file=None):
         if test_file is None:
             if self.dataset == "BUSI":
-                if binary_class:
-                    train_file = "data/busi_train_binary.txt"
-                    test_file = "data/busi_test_binary.txt"
-                else:
-                    train_file = "data/train_sample.txt"
-                    test_file = "data/test_sample.txt"
-            elif self.dataset == "test":
-                train_file = "example/debug_sample_benign.txt"
-                test_file = "example/debug_sample_benign.txt"
+                train_file = "data/busi_train_sample.txt"
+                test_file = "data/busi_test_sample.txt"
             elif self.dataset == "MAYO":
-                # train_file = "data/mayo_train.txt"
-                # test_file = "data/mayo_test.txt"
+                train_file = "data/mayo_train_mask.txt"
+                test_file = "data/mayo_test_mask.txt"
+            elif self.dataset == "test_BUSI":
+                train_file = "example/debug_BUSI.txt"
+                test_file = "example/debug_BUSI.txt"
+            elif self.dataset == "test_MAYO":
                 train_file = "example/debug_MAYO.txt"
                 test_file = "example/debug_MAYO.txt"
         else:
@@ -143,20 +140,13 @@ class Eval():
         dataloader = torch.utils.data.DataLoader(image_datasets["test"], shuffle=False) 
 
         # result matrics:
-        #      __________________________________________
-        #      | gt \ pred | Normal | COVID | Pneumonia | 
-        #      ------------------------------------------
-        #      |  Normal   |        |       |           |
-        #      |  COVID    |        |       |           |
-        #      |  Pneumonia|        |       |           |
-        #      ------------------------------------------
-        if self.dataset == "BUSI":
-            if binary_class:
-                result_matrics = np.zeros((2, 2))  
-            else:
-                result_matrics = np.zeros((3, 3)) 
-        elif self.dataset == "MAYO":
-            result_matrics = np.zeros((2, 2)) 
+        #      __________________________________
+        #      | gt \ pred | Malignant | Benign | 
+        #      ----------------------------------
+        #      |  Malignant|           |        |     
+        #      |  Benign   |           |        |
+        #      ----------------------------------
+        result_matrics = np.zeros((2, 2)) 
         with torch.no_grad():
             for data in dataloader:
                 inputs = data["image"].to(self.device)
@@ -167,17 +157,6 @@ class Eval():
                 # score = outputs[0].numpy()
                 pred = int(pred.item())
                 result_matrics[tag][pred] += 1
-
-        # if self.dataset == "BUSI":
-        #     result_matrics = np.zeros((3, 3))
-        #     with torch.no_grad():
-        #         for data in dataloader:
-        #             tag = data["label"].data.cpu().numpy()[0]
-        #             img = data["image"].to(self.device)
-        #             outputs = self.model(img)
-        #             _, pred = torch.max(outputs[0], 1)
-        #             pred = int(pred.cpu().numpy()[0])
-        #             result_matrics[tag][pred] += 1
             # precision: TP / (TP + FP)
             print("result matrics: ", result_matrics)
             # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
@@ -202,12 +181,7 @@ class Eval():
                 res_acc.append(acc)
                 res_speci.append(speci)
                 res_sens.append(sens)
-                f1_score.append(f1)
-        if (self.dataset == "BUSI") and not binary_class:
-            print('Precision: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_acc[0],res_acc[1],res_acc[2], np.mean(res_acc)))
-            print('Sensitivity: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_sens[0],res_sens[1],res_sens[2], np.mean(res_sens)))
-            print('Specificity: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(res_speci[0],res_speci[1],res_speci[2], np.mean(res_speci)))
-            print('F1 score: Normal: {0:.3f}, malignant: {1:.3f}, benign: {2:.3f}, avg: {3:.3f}'.format(f1_score[0],f1_score[1],f1_score[2], np.mean(f1_score)))          
+                f1_score.append(f1)      
         elif (self.dataset == 'MAYO') or binary_class:
             print('Precision: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_acc[0],res_acc[1], np.mean(res_acc)))
             print('Sensitivity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_sens[0], res_sens[1], np.mean(res_sens)))

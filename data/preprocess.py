@@ -46,7 +46,7 @@ def decode_video_csv(csv_file):
     return formated_info
 
 
-def parse_mayo_mask_box(patient_mask_file, box_anno_dir):
+def parse_mayo_mask_box_from_file(patient_mask_file, box_anno_dir):
     """Parse patient annotation information to get the rough mask region coordinates"""
     df = pd.read_csv(patient_mask_file)
     df = df.fillna("")
@@ -76,6 +76,19 @@ def parse_mayo_mask_box(patient_mask_file, box_anno_dir):
             box_coord[pid] = [0, 0, 854, 500]
     return box_coord
 
+
+def get_box_from_image(image_name, box_anno_dir):
+    postfix = "_bbox.txt"
+    box_file = os.path.join(box_anno_dir, image_name+postfix)
+    if os.path.exists(box_file):
+        with open(box_file, "r") as f:
+            box_str = f.readline().strip()
+            box_str_list = box_str.split(",")
+            box = [int(c) for c in box_str_list] 
+        f.close() 
+        return box
+    else:
+        return [0, 0, 0, 0]
 
 def split_videos(video_info, split_by="pid", test_ratio=0.15, seed=None):
     def _unpack_vids(pids):
@@ -140,7 +153,7 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
     train_file = os.path.join(save_dir, "mayo_train_mask.txt")
     test_file = os.path.join(save_dir, "mayo_test_mask.txt")
     # get all images
-    images = glob.glob(image_dir+"/**/*.png", recursive=True)
+    images = glob.glob(image_dir+"/**/images/*.png", recursive=True)
     print("Total images: {}".format(len(images)))
     valid_images = []
     valid_image_types = []
@@ -157,9 +170,12 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
     elif video_anno_file.endswith(".csv"):
         video_info = decode_video_csv(video_anno_file)
     # get mask info
-    mask_info = parse_mayo_mask_box(patient_anno_file, mask_annotate_dir)
+    # mask_info = parse_mayo_mask_box(patient_anno_file, mask_annotate_dir)
 
     valid_vids = []
+    mask_images = []
+    mask_boxes = []
+    mask_image_types = []
     for image in images:
         patient_id, video_id = None, None
         # get image patient id and disease type
@@ -169,7 +185,9 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
         if patient_id not in info:
             continue
         patient_type = info[patient_id]
-        box = mask_info[patient_id]
+        # box = mask_info[patient_id]
+        mask_annotate_dir = os.path.join(os.path.dirname(os.path.dirname(image)), "annotate")
+        box = get_box_from_image(filename, mask_annotate_dir)
         if skip_keywords_list:
             skip = False
             for keyword in skip_keywords_list:
@@ -186,20 +204,31 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
             frame_id = match.group(2)
             # if video confidence is 0, skip 
             # print(video_id, patient_id)
-            cur_video_info = video_info[patient_id][video_id]
-            if only_keep_conf:
-                if not cur_video_info["conf"]:
-                    skip = True 
-            # if video imaging is sector, skip 
-            if only_keep_square_image:
-                if not cur_video_info["shape"] == "square":
+            try:
+                cur_video_info = video_info[patient_id][video_id]
+                if only_keep_conf:
+                    if not cur_video_info["conf"]:
+                        skip = True 
+                # if video imaging is sector, skip 
+                if only_keep_square_image:
+                    if not cur_video_info["shape"] == "square":
+                        skip = True
+                # if video is not in ROI region, skip
+                if cur_video_info["start"] > int(frame_id) or int(frame_id) > cur_video_info["end"]:
                     skip = True
-            # if video is not in ROI region, skip
-            if cur_video_info["start"] > int(frame_id) or int(frame_id) > cur_video_info["end"]:
+            except:
                 skip = True
-        else:
-            # only use video image for training
-            skip = False
+        elif re.search("annotated", filename):
+            skip = True
+            mask_images.append(image)
+            mask_boxes.append(box)
+            mask_image_types.append(patient_type)
+        # no single images not from annotation or video
+        elif re.search("\d+_(IM\d+).png", filename):
+            skip = True 
+        #else:
+        #    # only use video image for training
+        #    skip = False
         if not skip: 
             valid_images.append(image)
             valid_image_types.append(patient_type)
@@ -211,6 +240,8 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
     else:
         train_vids, test_vids = split_videos(video_info, split_by, test_ratio=test_ratio, seed=seed)
         train_images, test_images, train_type, test_type, train_box, test_box = [], [], [], [], [], []
+        # split mask annotated images
+        train_mask_images, test_mask_images, train_mask_type, test_mask_type, train_mask_box, test_mask_box = train_test_split(mask_images, mask_image_types, mask_boxes, test_size=test_ratio, random_state=seed)
         for idx, vid in enumerate(valid_vids):
             if vid in test_vids:
                 test_images.append(valid_images[idx])
@@ -220,6 +251,26 @@ def generate_dataset_files(image_dir, save_dir, patient_anno_file, video_anno_fi
                 train_images.append(valid_images[idx])
                 train_type.append(valid_image_types[idx])
                 train_box.append((valid_mask_box[idx]))
+        # merge video image and mask image
+        train_images = train_images + train_mask_images
+        train_type = train_type + train_mask_type 
+        train_box = train_box + train_mask_box
+        test_images = test_images + test_mask_images
+        test_type = test_type + test_mask_type
+        test_box = test_box + test_mask_box
+        # shuffle the order
+        np.random.seed(seed)
+        np.random.shuffle(train_images)
+        np.random.seed(seed) 
+        np.random.shuffle(train_type) 
+        np.random.seed(seed)
+        np.random.shuffle(train_box)
+        np.random.seed(seed+114)
+        np.random.shuffle(test_images)
+        np.random.seed(seed+114) 
+        np.random.shuffle(test_type) 
+        np.random.seed(seed+114)
+        np.random.shuffle(test_box) 
     _write_list_to_file(train_images, train_type, train_box, train_file)
     _write_list_to_file(test_images, test_type, test_box, test_file)
     print("Image names are written done. Total {} training image, {} testing images".format(len(train_images), len(test_images)))
@@ -251,7 +302,7 @@ if __name__ == "__main__":
     only_keep_square_image = True
     only_keep_conf = True
     split_by = "vid"
-    # generate_dataset_files(image_dir, save_dir, anno_file, video_json, seed=seed, skip_keywords_list=skip_keywords_list,only_keep_conf=only_keep_conf, only_keep_square_image=only_keep_square_image, mask_annotate_dir=mask_anno_dir, split_by=split_by)
+    generate_dataset_files(image_dir, save_dir, anno_file, video_json, seed=seed, skip_keywords_list=skip_keywords_list,only_keep_conf=only_keep_conf, only_keep_square_image=only_keep_square_image, mask_annotate_dir=mask_anno_dir, split_by=split_by)
     # video_csv = "video_info.csv"
     # json2csv(video_json, video_csv)
 
