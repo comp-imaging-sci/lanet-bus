@@ -15,7 +15,10 @@ from util import get_image_mask, dilute_mask, parse_mayo_mask_box
 
 
 ORI_LABELS = ["malignant", "benign"] # ORI dataset labels: https://data.mendeley.com/datasets/wmy84gzngw/1
-BUSI_LABELS = ["normal", "malignant", "benign"] # BUSI dataset labels: https://bcdr.eu/information/downloads
+# 3 class
+# BUSI_LABELS = ["normal", "malignant", "benign"] # BUSI dataset labels: https://bcdr.eu/information/downloads
+# binary
+BUSI_LABELS = ["malignant", "benign"]
 MAYO_LABELS = ["Malignant", "Benign"] 
 
 # TODO: add gaussian noise or white noise to mask 
@@ -70,7 +73,7 @@ class BUSI_dataset(Dataset):
                 mask = self._mask_transform(mask)
                 mask = mask.type(torch.float)
                 # mask = mask * label_id  # normal case is identical to backaground
-        return {"image": img, "label": label_id, "mask": mask, "mask_exit": 1}
+        return {"image": img, "label": label_id, "mask": mask, "mask_exist": 1}
 
 
 # input image width/height ratio
@@ -258,7 +261,7 @@ def prepare_data(config):
                 else:
                     test_ds.append(ds)
         image_datasets = {"train": torch.utils.data.ConcatDataset(train_ds), 
-                           "test": torch.utils.data.ConcatDataset(test_ds)}        
+                           "test": torch.utils.data.ConcatDataset(test_ds)} 
     else:
         print("Unknown dataset")
     # class_names = image_datasets["train"].classes 

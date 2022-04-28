@@ -50,6 +50,8 @@ def train(model,
             else:
                 model.eval()
             running_loss = 0
+            running_cls_loss = 0
+            running_mask_loss = 0
             running_corrects = 0
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
@@ -79,7 +81,7 @@ def train(model,
                         cls_loss = criterion(outputs[0], labels)
                         # resize masks to final feature size
                         featmap_size = outputs[1].shape[-1]
-                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear")
+                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
                         mask_loss = mask_criterion(outputs[1], masks_inter)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
@@ -87,8 +89,7 @@ def train(model,
                         cls_loss = criterion(outputs[0], labels)
                         featmap_size = outputs[1].shape[-1]
                         batch_size = outputs[0].shape[0]
-                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear")
-                        # mute output if mask not exist
+                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
                         mask_exist = mask_exist.view([batch_size, 1, 1, 1])
                         mask_pred = outputs[1] * mask_exist 
                         mask_loss = mask_criterion(mask_pred, masks_inter)
@@ -104,6 +105,9 @@ def train(model,
                         loss.backward()
                         optimizer.step()
                 running_loss += loss.item() * inputs.size(0)
+                if model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                    running_cls_loss += cls_loss.item() * inputs.size(0)
+                    running_mask_loss += mask_loss.item() * inputs.size(0)
                 # print(preds, labels.data, torch.sum(preds == labels.data))
                 if model_name == "deeplabv3":
                     # match_ratio = np.sum(pred_mask == real_mask) / (input_size ** 2)  # mean via image size
@@ -114,7 +118,7 @@ def train(model,
             datasize = len(dataloader[phase].dataset)
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects / datasize
-            print("{} Loss: {:.4f}, Acc{:.4f}".format(phase, epoch_loss, epoch_acc))
+            print("{} Loss: {:.4f} (cls loss: {:.4f}; mask loss: {:.4f}), Acc{:.4f}".format(phase, epoch_loss, running_cls_loss/datasize, running_mask_loss/datasize, epoch_acc))
             if phase == 'test' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 torch.save(model.state_dict(), best_test_model)
@@ -164,7 +168,8 @@ def run(model_name,
         lr=0.001, 
         moment=0.9, 
         use_pretrained=True,
-        pretrained_weights=None,
+        pretrained_weights="",
+        backbone_weights="",
         dataset="BUSI",
         num_gpus=1, 
         dilute_mask=0,
@@ -181,7 +186,9 @@ def run(model_name,
         cbam_param = dict(no_channel=no_channel, 
                           reduction_ratio=reduction_ratio, 
                           attention_num_conv=attention_num_conv, 
-                          attention_kernel_size=attention_kernel_size)
+                          attention_kernel_size=attention_kernel_size, 
+                          backbone_weights=backbone_weights,
+                          device=device)
     else:
         cbam_param = {}
     model = get_model(model_name=model_name,
@@ -199,22 +206,24 @@ def run(model_name,
         except:
             model = load_weights(model, pretrained_weights, multi_gpu=True, device=device, num_classes=num_classes)
     if dataset == "BUSI":
-        train_file = "data/busi_train_sample.txt"
-        test_file = "data/busi_test_sample.txt"
+        train_file = "data/busi_train_binary.txt"
+        test_file = "data/busi_test_binary.txt"
     elif dataset == "MAYO":
-        train_file = "data/mayo_train_mask.txt"
-        test_file = "data/mayo_test_mask.txt"
+        #train_file = "data/mayo_train_mask_conf.txt"
+        #test_file = "data/mayo_test_mask_conf.txt"
+        train_file = "data/mayo_train_mask_v2.txt"
+        test_file  = "data/mayo_test_mask_v2.txt"
     elif dataset == "test_BUSI": 
         train_file = "example/debug_BUSI.txt"
-        test_file = "example/debug_BUSI.txt"
+        test_file  = "example/debug_BUSI.txt"
         dataset = "BUSI"
     elif dataset == "test_MAYO":
         train_file = "example/debug_MAYO_mask.txt"
-        test_file = "example/debug_MAYO_mask.txt"
+        test_file  = "example/debug_MAYO_mask.txt"
         dataset = "MAYO"
     elif dataset == "All":
-        train_file = ["data/mayo_train_mask.txt", "data/busi_train_sample.txt"]
-        test_file = ["data/mayo_test_mask.txt", "data/busi_test_sample.txt"]
+        train_file = ["data/mayo_train_mask_v2.txt", "data/busi_train_binary.txt"]
+        test_file = ["data/mayo_test_mask_v2.txt", "data/busi_test_binary.txt"]
         dataset = "All"
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
@@ -231,9 +240,12 @@ def run(model_name,
     dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=0,   drop_last=True) for x in ["train", "test"]}
     # loss function
     if dataset == "BUSI":
-        cls_weight = [2.0, 1.0, 1.0]
+        if num_classes == 3:
+            cls_weight = [2.0, 1.0, 1.0]
+        else:
+            cls_weight = [1.0, 1.0]
     elif dataset in ["MAYO", "All"]:
-        cls_weight = [4.0, 1.0]
+        cls_weight = [2.0, 1.0]
     if model_name == "deeplabv3":
         # criterion = nn.NLLLoss(reduction="mean").to(device)
         criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(5.0)).to(device)

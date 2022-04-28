@@ -159,6 +159,7 @@ def run(data_dir, save_dir, temp_images, draw_box=False):
         os.makedirs(save_dir)
     # get all annotated images
     images = glob.glob(data_dir+"/**/*annotated.png", recursive=True)
+    print(len(images))
     for image in images:
         loc, frame = get_lesion_location(image, temp_images, draw_box=draw_box)
         if not loc: 
@@ -177,9 +178,9 @@ if __name__ == "__main__":
     target ="/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images/018_IM00003 annotated.png" 
     temp_images = ['temp1.png', 'temp2.png']
     # coord, frame = get_lesion_location(target, temp_images, draw_box=True)
-    data_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images"
-    anno_save_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/annotate"
-    data_dir = "/Users/zongfan/Downloads/annotate"
-    anno_save_dir = "/Users/zongfan/Downloads/annotate"
-    image_save_dir = anno_save_dir
+    data_dir = "/shared/radon/TOP/breast_cancer_us/MAYO/101-150/images"
+    anno_save_dir = "/shared/radon/TOP/breast_cancer_us/MAYO/101-150/annotate"
+    # data_dir = "/Users/zongfan/Downloads/annotate"
+    # anno_save_dir = "/Users/zongfan/Downloads/annotate"
+    # image_save_dir = anno_save_dir
     run(data_dir, anno_save_dir, temp_images, draw_box=True)

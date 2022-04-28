@@ -73,31 +73,29 @@ if __name__ == '__main__':
     # fpath = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/001-050/009/IM00009 color" 
     # save_dir = "test"
     # save_dir = "/Users/zongfan/Downloads/dicom_test"
-    data_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/001-050"
-    save_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images"
-    data_dir = "/Users/zongfan/Downloads/101-150"
-    save_dir = "/Users/zongfan/Downloads/annotate"
+    data_dir = "/shared/radon/TOP/breast_cancer_us/MAYO/001-050"
+    save_dir = "/shared/radon/TOP/breast_cancer_us/MAYO/001-050/images"
     # extract_image_from_dicom(fpath, save_dir)
-    # run(data_dir, save_dir)
-    dirs  = "/Users/zongfan/Downloads/Applicator Scan 202109"
-    for fpath in glob.glob(dirs+"/*.dcm"):
-        ds = dcmread(fpath)
-        try:
-            data = ds.pixel_array
-            # print(data.shape)
-            dshape = data.shape
-            # print(dshape)
-            max_v, min_v = np.max(data), np.min(data)
-            # min_v = 0
-            if min_v != 0:
-                print("min value not 0: ", os.path.basename(fpath))
-            data = (data - min_v) / (max_v-min_v) * 255
-            data = data.astype(np.uint8)
-            # save image
-            save_name = fpath.replace("dcm", "png")
-            cv2.imwrite(save_name, data)
-        except: 
-            print("No data: ", os.path.basename(fpath))
+    run(data_dir, save_dir)
+    # dirs  = "/Users/zongfan/Downloads/Applicator Scan 202109"
+    # for fpath in glob.glob(dirs+"/*.dcm"):
+    #     ds = dcmread(fpath)
+    #     try:
+    #         data = ds.pixel_array
+    #         # print(data.shape)
+    #         dshape = data.shape
+    #         # print(dshape)
+    #         max_v, min_v = np.max(data), np.min(data)
+    #         # min_v = 0
+    #         if min_v != 0:
+    #             print("min value not 0: ", os.path.basename(fpath))
+    #         data = (data - min_v) / (max_v-min_v) * 255
+    #         data = data.astype(np.uint8)
+    #         # save image
+    #         save_name = fpath.replace("dcm", "png")
+    #         cv2.imwrite(save_name, data)
+    #     except: 
+    #         print("No data: ", os.path.basename(fpath))
 
 
 

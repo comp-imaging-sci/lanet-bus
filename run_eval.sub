@@ -1,0 +1,26 @@
+# cyclegan_testing.sub
+
+Executable = run_eval.sh
+# argument = " "
+#
+# FILE TRANSFER ARGUMENTS
+# transfer_input_files =
+# should_transfer_fiels = IF_NEEDED
+# when_to_transfer_output = ON_EXIT
+# notification = never
+
+# Only if you need to specify a machine
+#requirements = (machine == "aristotle.bioen.illinois.edu")
+#requirements = (machine == "anastasio4.bioen.illinois.edu")
+#requirements = (machine == "anastasio5.bioen.illinois.edu")
+#requirements = (machine == "curie.bioen.illinois.edu")
+#requirements = (machine == "radon.bioen.illinois.edu")
+
+Universe = vanilla
+getenv = true
+request_gpus = 1  
+
+#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet50_448_001-150.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_resnet50_256.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/BUSI_resnet50_256.err
+Queue

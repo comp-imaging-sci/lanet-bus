@@ -1,6 +1,9 @@
+from turtle import st
+from pyrsistent import b
 import torch
 import torch.nn as nn
 from torchvision import models
+import os
 try:    
     from .seg_net import DeepLabV3
     from .resnet_attention import resnet18, resnet50 
@@ -243,7 +246,9 @@ class ResNetCbam(nn.Module):
                  no_channel=False,
                  reduction_ratio=16, 
                  attention_kernel_size=3, 
-                 attention_num_conv=3):
+                 attention_num_conv=3,
+                 backbone_weights=None,
+                 device="cpu"):
         super(ResNetCbam, self).__init__()
         if model_name in ["resnet18_cbam_mask", "resnet18_cbam"]:
             model = resnet18
@@ -262,6 +267,17 @@ class ResNetCbam(nn.Module):
                         use_cbam=use_cbam,
                         cbam_param=cbam_param,
                         return_all_feature=True)
+        if os.path.exists(backbone_weights):
+            pretrain_state=torch.load(backbone_weights, map_location=device)
+            # not load fc params
+            # pretrain_state.pop("fc.weight")
+            # pretrain_state.pop("fc.bias")
+            cur_state = self.net.state_dict()
+            # state.update(state_dict)
+            new_state_dict={k:v if v.size()==cur_state[k].size()  else  cur_state[k] for k,v in zip(cur_state.keys(), pretrain_state.values())}
+            self.net.load_state_dict(new_state_dict, strict=False)
+            # self.net.load_state_dict(pretrain_state, strict=False)
+        # load net weight if given
         # self.net = model
         num_features = planes[-1]
         # self.net = nn.Sequential(*list(model.children())[:-2])
@@ -269,7 +285,7 @@ class ResNetCbam(nn.Module):
         self.fc = nn.Linear(num_features, num_classes)
         if use_mask:
             saliency_use_cam = not use_cbam
-            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=saliency_use_cam, cbam_param=cbam_param)
+            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=saliency_use_cam, cbam_param=cbam_param, device=device)           
 
     def forward(self, x):
         x, fs = self.net(x)
@@ -334,7 +350,9 @@ def get_model(model_name,
                            no_channel=kwargs.get("no_channel", True),
                            reduction_ratio=kwargs.get("reduction_ratio", 16), 
                            attention_kernel_size=kwargs.get("attention_kernel_size", 3), 
-                           attention_num_conv=kwargs.get("attention_num_conv", 3))
+                           attention_num_conv=kwargs.get("attention_num_conv", 3),
+                           backbone_weights=kwargs.get("backbone_weights", ""),
+                           device=kwargs.get("device", "cuda:0"))
     else:
         print("unknown model name!")
     return model
@@ -343,15 +361,17 @@ def get_model(model_name,
 
 if __name__ == "__main__":
     torch.manual_seed(0)
-    inputs = torch.rand(2, 3, 224, 224)
-    inputs = torch.ones(2, 3, 224, 224) * 0.5
+    inputs = torch.rand(2, 3, 256, 256)
+    # inputs = torch.ones(2, 3, 256, 256) * 0.5
     # inputs = torch.rand(2, 3, 32, 32) 
     # model = get_model("resnet18", 3, use_pretrained=True, return_logit=True)
     # model = models.densenet161(pretrained=False, num_classes=3) 
     # model = get_model("resnet50_attention_mask", 3, use_pretrained=False, return_logit=True, return_feature=True) 
     # print(list(model.children())[:-1])
     # model = nn.Sequential(*list(model.children())[:-1])
-    model = get_model(model_name="resnet18_cbam_mask", use_pretrained=True, image_size=224, num_classes=3, use_cbam=False, use_mask=True, no_channel=True, attention_kernel_size=3, attention_num_conv=3)
+    backbone_w = "/Users/zongfan/Downloads/best_model.pt"
+    # backbone_w = None
+    model = get_model(model_name="resnet50_cbam_mask", use_pretrained=True, image_size=256, num_classes=3, use_cbam=False, use_mask=True, no_channel=False, attention_kernel_size=3, attention_num_conv=3, backbone_weight=backbone_w, map_size=8)
     res = model(inputs)
     try:
         print(res[0].shape, res[1].shape)

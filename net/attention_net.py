@@ -117,12 +117,13 @@ class CBAM(nn.Module):
             x = x * c_scale
         s_scale = self.SpatialGate(x)
         x = x * s_scale
-        return x, s_scale
+        # return x, s_scale
+        return x
 
 
 class SaliencyNet(nn.Module):
     # upsmaple and concatenate intermediate features, then apply conv to predict the saliency map 
-    def __init__(self, map_size, planes=None, use_cbam=False, cbam_param=None, device="cpu"):
+    def __init__(self, map_size, planes=None, use_cbam=False, cbam_param=None, device="cuda:0"):
         # planes: channels of each features 
         super(SaliencyNet, self).__init__()
         # self._use_cbam = use_cbam
@@ -132,6 +133,7 @@ class SaliencyNet(nn.Module):
                             no_channel=cbam_param["no_channel"],
                             attention_kernel_size=cbam_param.get("attention_kernel_size", 3),
                             attention_num_conv=cbam_param.get("attention_num_conv", 3)).to(device) for plane in planes]
+        self.squeeze = [nn.Conv2d(plane, 1, kernel_size=3, stride=1, padding=1) for plane in planes]
         self.upsample = nn.Upsample([map_size, map_size], mode="bilinear", align_corners=True)
         self.conv = nn.Conv2d(4, 1, kernel_size=3, stride=1, padding=1)
         self.bn = nn.BatchNorm2d(1)
@@ -142,11 +144,13 @@ class SaliencyNet(nn.Module):
         # extract spatial feature map 
         s = []
         for i, f in enumerate(x):
-            _, si = self.cbams[i](f)
+            # _, si = self.cbams[i](f)
+            si = self.cbams[i](f)
+            # squeeze 
+            si = self.squeeze[i](si)
             s.append(si)
-        x = s
         # upsample 
-        x = [self.upsample(f) for f in x]
+        x = [self.upsample(f) for f in s]
         # concate
         x = torch.cat(x, axis=1) # unable to backprop 
         # average
@@ -164,6 +168,6 @@ if __name__ == "__main__":
     ]
     planes = [4, 4, 4, 4]
     cbam_param = {"no_channel": True, "attention_kernel_size": 3, "attention_num_conv":3}
-    sl = SaliencyNet(24, planes, use_cbam=True, cbam_param=cbam_param)
+    sl = SaliencyNet(24, planes, use_cbam=True, cbam_param=cbam_param, device="cpu")
     y = sl(x)
     print(y.shape)

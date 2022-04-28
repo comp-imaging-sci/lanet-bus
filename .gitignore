@@ -1,5 +1,13 @@
 test
 __pycache__
+BUSI_*
+.DS_Store
+test_sample*
+train_sample*
+debug_sample_*
 *.pt
 model
 *.txt
+eval
+MAYO_*
+All_train
