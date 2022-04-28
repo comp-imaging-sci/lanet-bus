@@ -1,6 +1,6 @@
 #!/bin/bash
-model_dir="BUSI_train/resnet50_cbam_mask_channel_256_stage2"
-declare -a StringArray=("best_model.pt")
+model_dir="BUSI_train"
+declare -a StringArray=("exp1-resnet50-cbam=False-mask=False-no_channel=False-size=256-cls=2/best_model.pt") 
 for model in ${StringArray[@]};
 do
     full_path="$model_dir/$model"
@@ -17,18 +17,24 @@ do
     #           --image_path="/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/malignant/malignant (2).png" \
     #           --saliency_file="test/test_saliency.png" \
     #           --target_category=1 \
-    python eval.py --model_name="resnet50_cbam_mask" \
+    python eval.py --model_name="resnet50" \
                --num_classes=2 \
                --model_weights=$full_path \
-               --image_size=448 \
+               --image_size=256 \
                --device="cuda:0" \
                --dataset="BUSI" \
                --multi_gpu=False \
                --use_cbam=False \
-               --use_mask=True \
+               --use_mask=False \
                --no_channel=False \
-               accuracy \
-               --binary_class=True 
+               --reduction_ratio=16 \
+               --attention_num_conv=3 \
+               --attention_kernel_size=3 \
+               accuracy
+               #iou \
+               #--mask_thres=0.2
+               #accuracy \
+               #--binary_class=True 
                #--test_file=/shared/anastasio5/COVID19/data/originals/orig_train_sample.txt
     echo "Model processed: $model"
     echo "======================="

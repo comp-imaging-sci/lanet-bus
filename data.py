@@ -358,17 +358,19 @@ def generate_image_list(img_dir, save_dir, test_sample_size=40):
 
 
 if __name__ == "__main__":
-    # import cv2
-    # from util import draw_segmentation_mask
-    # image_dir = "/Users/zongfan/Projects/data/originals"
-    # # image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
-    # config = {"image_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
-    # ds, _ = prepare_data(config)
-    # batch_size = 2
-    # dataloader = torch.utils.data.DataLoader(ds["train"], batch_size=batch_size)
-    # for data in dataloader:
-    #     imgs = data['image']
-    #     masks = data["mask"]
+     import cv2
+     from util import draw_segmentation_mask
+     image_dir = "/Users/zongfan/Projects/data/originals"
+     # image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
+     config = {"image_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
+     ds, _ = prepare_data(config)
+     batch_size = 2
+     dataloader = torch.utils.data.DataLoader(ds["train"], batch_size=batch_size)
+     for data in dataloader:
+         imgs = data['image']
+         masks = data["mask"]
+         print(masks.shape)
+         break
         # print(imgs.shape)
         # img_shape = imgs.shape
         # imgs = imgs.view(img_shape[0]*img_shape[1], img_shape[2], img_shape[3], img_shape[4])
@@ -390,17 +392,17 @@ if __name__ == "__main__":
         #         exit()
     # generate_image_list(image_dir, ".", test_sample_size=32)
 
-    test_image = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images/050_IM00009 video_105.png"
-    train_file = "data/mayo_train.txt"
+    #test_image = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images/050_IM00009 video_105.png"
+    #train_file = "data/mayo_train.txt"
 
-    img = Image.open(test_image)
-    print(img.size)
-    img = img.convert("RGB")
-    md = MAYO_dataset(train_file, BUSI_IMAGE_RATIO)
-    frame = md.crop(img)
-    print(frame.size)
-    frame.show()
-    img.show()
+    #img = Image.open(test_image)
+    #print(img.size)
+    #img = img.convert("RGB")
+    #md = MAYO_dataset(train_file, BUSI_IMAGE_RATIO)
+    #frame = md.crop(img)
+    #print(frame.size)
+    #frame.show()
+    #img.show()
     # img = transforms.ToTensor()(img)
     # print(img.shape)
     # p = PatchGenerator(n=16, patch_size=448, style="grid")
