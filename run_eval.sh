@@ -1,13 +1,12 @@
 #!/bin/bash
 img_size=256 
-use_cbam=False
 use_mask=False
-no_channel=False
+channel_att=True
 dataset="BUSI"
 model_name="resnet50"
 map_size=$(expr $img_size / 32)
 exp="exp1"
-declare -a StringArray=( "${exp}-${model_name}-cbam=${use_cbam}-mask=${use_mask}-no_channel=${no_channel}-size=${img_size}-cls=2/best_model.pt" )
+declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${no_channel}-size=${img_size}-cls=2/best_model.pt" )
 for model in ${StringArray[@]};
 do
     full_path="${dataset}_train/$model"
@@ -32,9 +31,8 @@ do
                --device="cuda:0" \
                --dataset=$dataset \
                --multi_gpu=False \
-               --use_cbam=$use_cbam \
                --use_mask=$use_mask \
-               --no_channel=$no_channel \
+               --channel_att=$channel_att \
                --reduction_ratio=16 \
                --attention_num_conv=3 \
                --attention_kernel_size=3 \

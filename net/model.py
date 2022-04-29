@@ -240,13 +240,13 @@ class ResNetCbam(nn.Module):
                  num_classes, 
                  use_pretrained=True, 
                  map_size=448,
-                 use_cbam=True, 
                  use_mask=True,
-                 no_channel=False,
+                 channel_att=False,
                  reduction_ratio=16, 
                  attention_kernel_size=3, 
                  attention_num_conv=3,
-                 backbone_weights=None,
+                 backbone_weights="",
+                 saliency_weights="",
                  device="cuda:0"):
         super(ResNetCbam, self).__init__()
         if model_name in ["resnet18_cbam_mask", "resnet18_cbam"]:
@@ -255,26 +255,25 @@ class ResNetCbam(nn.Module):
         elif model_name in ["resnet50_cbam_mask", "resnet50_cbam"]:
             model = resnet50
             planes = [256, 512, 1024, 2048]
-        self._use_cbam = use_cbam
         self._use_mask = use_mask
         cbam_param = dict(sp_kernel_size=attention_kernel_size, 
                           sp_num_conv=attention_num_conv,
-                          no_channel=no_channel,
+                          channel_att=channel_att,
                           reduction_ratio=reduction_ratio,
                           )
         self.net = model(pretrained=use_pretrained, 
-                        use_cbam=use_cbam,
-                        cbam_param=cbam_param,
+                        use_cbam=False,
+                        cbam_param=None,
                         return_all_feature=True)
         if os.path.exists(backbone_weights):
-            pretrain_state=torch.load(backbone_weights, map_location=device)
+            b_pretrain_state=torch.load(backbone_weights, map_location=device)
             # not load fc params
             # pretrain_state.pop("fc.weight")
             # pretrain_state.pop("fc.bias")
-            cur_state = self.net.state_dict()
+            cur_b_state = self.net.state_dict()
             # state.update(state_dict)
-            new_state_dict={k:v if v.size()==cur_state[k].size()  else  cur_state[k] for k,v in zip(cur_state.keys(), pretrain_state.values())}
-            self.net.load_state_dict(new_state_dict, strict=False)
+            new_b_state_dict={k:v if v.size()==cur_b_state[k].size()  else  cur_b_state[k] for k,v in zip(cur_b_state.keys(), b_pretrain_state.values())}
+            self.net.load_state_dict(new_b_state_dict, strict=False)
             # self.net.load_state_dict(pretrain_state, strict=False)        
         # self.net = model
         num_features = planes[-1]
@@ -282,9 +281,14 @@ class ResNetCbam(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(num_features, num_classes)
         if use_mask:
-            saliency_use_cam = not use_cbam
-            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=saliency_use_cam, cbam_param=cbam_param, device=device).to(device)
-            initialize_weights(self.saliency)
+            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=True, cbam_param=cbam_param).to(device)
+            if os.path.exists(saliency_weights):
+                s_pretrain_state=torch.load(saliency_weights, map_location=device)
+                # cur_s_state = self.saliency.state_dict()
+                # new_s_state_dict={k:v if v.size()==cur_s_state[k].size()  else  cur_s_state[k] for k,v in zip(cur_s_state.keys(), s_pretrain_state.values())}
+                self.saliency.load_state_dict(s_pretrain_state, strict=False)
+            else:
+                initialize_weights(self.saliency)
 
     def forward(self, x):
         x, fs = self.net(x)
@@ -347,13 +351,13 @@ def get_model(model_name,
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size)
     elif model_name in ["resnet18_cbam_mask", "resnet18_cbam", "resnet50_cbam_mask", "resnet50_cbam"]:
         model = ResNetCbam(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size,
-                           use_cbam=kwargs.get("use_cbam", False), 
                            use_mask=kwargs.get("use_mask", True),
-                           no_channel=kwargs.get("no_channel", True),
+                           channel_att=kwargs.get("channel_att", True),
                            reduction_ratio=kwargs.get("reduction_ratio", 16), 
                            attention_kernel_size=kwargs.get("attention_kernel_size", 3), 
                            attention_num_conv=kwargs.get("attention_num_conv", 3),
                            backbone_weights=kwargs.get("backbone_weights", ""),
+                           saliency_weights=kwargs.get("saliency_weights", "",),
                            device=kwargs.get("device", "cuda:0"))
     else:
         print("unknown model name!")
@@ -373,7 +377,7 @@ if __name__ == "__main__":
     # model = nn.Sequential(*list(model.children())[:-1])
     backbone_w = "/Users/zongfan/Downloads/best_model.pt"
     # backbone_w = None
-    model = get_model(model_name="resnet50_cbam_mask", use_pretrained=True, image_size=256, num_classes=3, use_cbam=False, use_mask=True, no_channel=False, attention_kernel_size=3, attention_num_conv=3, backbone_weight=backbone_w, map_size=8)
+    model = get_model(model_name="resnet50_cbam_mask", use_pretrained=True, image_size=256, num_classes=3, use_mask=True, channel_att=True, attention_kernel_size=3, attention_num_conv=3, backbone_weight=backbone_w, map_size=8)
     res = model(inputs)
     try:
         print(res[0].shape, res[1].shape)

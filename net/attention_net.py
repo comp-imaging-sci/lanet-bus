@@ -104,15 +104,15 @@ class SpatialGate(nn.Module):
         return scale
 
 class CBAM(nn.Module):
-    def __init__(self, gate_channels=None, reduction_ratio=16, pool_types=['avg', 'max'], no_channel=False, attention_kernel_size=3, attention_num_conv=3):
+    def __init__(self, gate_channels=None, reduction_ratio=16, pool_types=['avg', 'max'], channel_att=True, attention_kernel_size=3, attention_num_conv=3):
         super(CBAM, self).__init__()
-        self.no_channel=no_channel
-        if not no_channel:
+        self.channel_att=channel_att
+        if channel_att:
             self.ChannelGate = ChannelGate(gate_channels, reduction_ratio, pool_types)
         self.SpatialGate = SpatialGate(kernel_size=attention_kernel_size, num_conv=attention_num_conv)
 
     def forward(self, x):
-        if not self.no_channel:
+        if self.channel_att:
             c_scale = self.ChannelGate(x)
             x = x * c_scale
         s_scale = self.SpatialGate(x)
@@ -123,7 +123,7 @@ class CBAM(nn.Module):
 
 class SaliencyNet(nn.Module):
     # upsmaple and concatenate intermediate features, then apply conv to predict the saliency map 
-    def __init__(self, map_size, planes=None, use_cbam=False, cbam_param=None, device="cuda:0"):
+    def __init__(self, map_size, planes=None, use_cbam=False, cbam_param=None):
         # planes: channels of each features 
         super(SaliencyNet, self).__init__()
         # self._use_cbam = use_cbam
@@ -133,7 +133,7 @@ class SaliencyNet(nn.Module):
         for plane in planes: 
             self.cbams.append(CBAM(plane, 
                             reduction_ratio=cbam_param.get("reduction_ratio", 16), 
-                            no_channel=cbam_param["no_channel"],
+                            channel_att=cbam_param.get("channel_att", True),
                             attention_kernel_size=cbam_param.get("attention_kernel_size", 3),
                             attention_num_conv=cbam_param.get("attention_num_conv", 3)))
             self.squeeze.append(nn.Conv2d(plane, 1, kernel_size=3, stride=1, padding=1))
@@ -162,13 +162,22 @@ class SaliencyNet(nn.Module):
         return x
 
 if __name__ == "__main__":
-    x = [torch.rand(2, 4, 3, 3),
-        torch.rand(2, 4, 6, 6),
-        torch.rand(2, 4, 12, 12),
-        torch.rand(2, 4, 24, 24)
-    ]
-    planes = [4, 4, 4, 4]
-    cbam_param = {"no_channel": True, "attention_kernel_size": 3, "attention_num_conv":3}
-    sl = SaliencyNet(24, planes, use_cbam=True, cbam_param=cbam_param, device="cpu")
+    import random
+    random.seed(1)
+    x1 = torch.rand(2, 16, 3, 3)
+    random.seed(1)
+    x2 = torch.rand(2, 16, 6, 6)
+    random.seed(1)
+    x3 = torch.rand(2, 16, 12, 12)
+    random.seed(1)
+    x4 = torch.rand(2, 16, 12, 12)
+    x = [x1, x2, x3, x4]
+    planes = [16, 16, 16, 16]
+    cbam_param = {"channel_att": True, "attention_kernel_size": 3, "attention_num_conv":3}
+    sl = SaliencyNet(8, planes, use_cbam=True, cbam_param=cbam_param)
+    s_pretrain_state=torch.load("../test/best_model.pt", map_location="cpu")
+    # cur_s_state = self.saliency.state_dict()
+    # new_s_state_dict={k:v if v.size()==cur_s_state[k].size()  else  cur_s_state[k] for k,v in zip(cur_s_state.keys(), s_pretrain_state.values())}
+    sl.load_state_dict(s_pretrain_state, strict=False)
     y = sl(x)
-    print(y.shape)
+    print(y)

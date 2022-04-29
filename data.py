@@ -42,6 +42,7 @@ class BUSI_dataset(Dataset):
 
     def __len__(self):
         return len(self._img_files)
+        # return 10
 
     def __getitem__(self, idx):
         image_name = self._img_files[idx]
@@ -73,6 +74,10 @@ class BUSI_dataset(Dataset):
                 mask = self._mask_transform(mask)
                 mask = mask.type(torch.float)
                 # mask = mask * label_id  # normal case is identical to backaground
+        # dummy input for testing 
+        # img = torch.rand(3, 256,256)
+        # label_id = 1
+        # mask = torch.rand(1, 256, 256)
         return {"image": img, "label": label_id, "mask": mask, "mask_exist": 1}
 
 
@@ -114,6 +119,7 @@ class MAYO_dataset(Dataset):
     
     def __len__(self):
         return len(self._img_files)
+        # return 10
     
     def crop(self, frame):
         # remove padding first
@@ -167,7 +173,12 @@ class MAYO_dataset(Dataset):
                 # torch.set_rng_state(state)
                 mask = self._mask_transform(mask)
                 mask = mask.type(torch.float)
-                # mask = mask * label_id  # normal case is identical to backaground
+                mask = mask * label_id  # normal case is identical to backaground
+        # dummy input for testing
+        # img = torch.rand(3, 256,256)
+        # label_id = 1
+        # mask = torch.rand(1, 256, 256)
+        # mask_exist = 1 
         return {"image": img, "label": label_id, "mask": mask, "mask_exist": mask_exist}
 
 

@@ -37,9 +37,8 @@ class Eval():
                  device="cpu",
                  dataset="covidx",
                  multi_gpu=False,
-                 use_cbam=True, 
                  use_mask=True,
-                 no_channel=False,
+                 channel_att=False,
                  reduction_ratio=16, 
                  attention_num_conv=3, 
                  attention_kernel_size=3,
@@ -52,9 +51,8 @@ class Eval():
         self.device = device
         self.dataset = dataset
         self.multi_gpu = multi_gpu
-        self.use_cbam = use_cbam
         self.use_mask = use_mask
-        self.no_channel = no_channel 
+        self.channel_att = channel_att
         self.reduction_ratio = reduction_ratio
         self.attention_num_conv = attention_num_conv
         self.attention_kernel_size = attention_kernel_size
@@ -62,8 +60,8 @@ class Eval():
         self.load_model()
     
     def load_model(self):
-        if self.use_cbam:
-            cbam_param = dict(no_channel=self.no_channel, 
+        if self.use_mask:
+            cbam_param = dict(channel_att=self.channel_att, 
                           reduction_ratio=self.reduction_ratio, 
                           attention_num_conv=self.attention_num_conv, 
                           attention_kernel_size=self.attention_kernel_size,
@@ -75,7 +73,6 @@ class Eval():
                           num_classes=self.num_classes, 
                           use_pretrained=True, 
                           return_logit=False,
-                          use_cbam=self.use_cbam,
                           use_mask=self.use_mask,
                           map_size=self.map_size,
                           **cbam_param).to(self.device)
