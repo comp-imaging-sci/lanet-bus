@@ -7,11 +7,10 @@ no_channel=False
 dataset="BUSI"
 model_name="resnet50"
 map_size=$(expr $img_size / 32)
-declare -a StringArray=( "exp1-${model_name}-cbam=${use_cbam}-mask=${use_mask}-no_channel=${no_channel}-size=${img_size}-cls=2/best_model" )
+declare -a StringArray=( "exp1-${model_name}-cbam=${use_cbam}-mask=${use_mask}-no_channel=${no_channel}-size=${img_size}-cls=2/best_model.pt" )
 for model in ${StringArray[@]};
 do
     full_path="$model_dir/$model"
-    echo "$full_path"
     #python eval.py --model_name="deeplabv3" \
     #           --num_classes=3 \
     #           --model_weights=$full_path \
