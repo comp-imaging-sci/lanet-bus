@@ -42,7 +42,7 @@ def train(model,
     if model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
         # mask_criterion = nn.L1Loss()
         # mask_criterion = nn.BCEWithLogitsLoss().to(device)
-        mask_criterion = nn.BCEsLoss().to(device)
+        mask_criterion = nn.BCELoss().to(device)
         if mask_weight is None:
             mask_weight = 1.0 
     for epoch in range(num_epochs):
@@ -86,7 +86,7 @@ def train(model,
                         # resize masks to final feature size
                         featmap_size = outputs[1].shape[-1]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
-                        mask_loss = mask_criterion(outputs[1], masks_inter)
+                        mask_loss = mask_criterion(nn.Sigmoid(outputs[1]), masks_inter)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
                     elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask"]:
@@ -213,8 +213,8 @@ def run(model_name,
         train_file = "data/busi_train_binary.txt"
         test_file = "data/busi_test_binary.txt"
     elif dataset == "MAYO":
-        #train_file = "data/mayo_train_mask_conf.txt"
-        #test_file = "data/mayo_test_mask_conf.txt"
+        #train_file = "data/mayo_exp_wo_bb.txt"
+        #test_file = "data/mayo_exp_wo_bb.txt"
         train_file = "data/mayo_train_mask_v2.txt"
         test_file  = "data/mayo_test_mask_v2.txt"
     elif dataset == "test_BUSI": 
@@ -282,7 +282,7 @@ def run(model_name,
     print("Val acc history: ", hist)
 
 if __name__ == "__main__":
-    # fire.Fire(run)
+    fire.Fire(run)
     # # training config
     # input_size = 224
     # num_classes = 3 
@@ -292,12 +292,3 @@ if __name__ == "__main__":
     # device = "cuda:0"
     # input_dir = "/shared/anastasio5/COVID19/data/covidx"
     # model_save_path = "covidx_res50"
-    loss = nn.BCELoss(reduction="none")
-    # loss = nn.CrossEntropyLoss()
-    x = torch.zeros(7,7)
-    # x = nn.Sigmoid()(x)
-    # x[1,1]=1
-    y = torch.ones(7,7)
-    # y[1,1]=1
-    z = loss(x,x)
-    print(z)
