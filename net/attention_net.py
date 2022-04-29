@@ -128,12 +128,15 @@ class SaliencyNet(nn.Module):
         super(SaliencyNet, self).__init__()
         # self._use_cbam = use_cbam
         # if self._use_cbam:
-        self.cbams = [CBAM(plane, 
+        self.cbams = nn.ModuleList()
+        self.squeeze = nn.ModuleList()
+        for plane in planes: 
+            self.cbams.append(CBAM(plane, 
                             reduction_ratio=cbam_param.get("reduction_ratio", 16), 
                             no_channel=cbam_param["no_channel"],
                             attention_kernel_size=cbam_param.get("attention_kernel_size", 3),
-                            attention_num_conv=cbam_param.get("attention_num_conv", 3)).to(device) for plane in planes]
-        self.squeeze = [nn.Conv2d(plane, 1, kernel_size=3, stride=1, padding=1) for plane in planes]
+                            attention_num_conv=cbam_param.get("attention_num_conv", 3)))
+            self.squeeze.append(nn.Conv2d(plane, 1, kernel_size=3, stride=1, padding=1))
         self.upsample = nn.Upsample([map_size, map_size], mode="bilinear", align_corners=True)
         self.conv = nn.Conv2d(4, 1, kernel_size=3, stride=1, padding=1)
         self.bn = nn.BatchNorm2d(1)
@@ -144,15 +147,13 @@ class SaliencyNet(nn.Module):
         # extract spatial feature map 
         s = []
         for i, f in enumerate(x):
-            # _, si = self.cbams[i](f)
-            si = self.cbams[i](f)
-            # squeeze 
+            #_, si = self.cbams[i](f)
+            si, _ = self.cbams[i](f)
             si = self.squeeze[i](si)
+            si = self.upsample(si)
             s.append(si)
-        # upsample 
-        x = [self.upsample(f) for f in s]
         # concate
-        x = torch.cat(x, axis=1) # unable to backprop 
+        x = torch.cat(s, axis=1) # unable to backprop 
         # average
         # x = torch.mean(x, 1).unsqueeze(1)
         x = self.conv(x)

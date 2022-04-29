@@ -1,6 +1,7 @@
 from turtle import st
 from pyrsistent import b
 import torch
+import os
 import torch.nn as nn
 from torchvision import models
 import os
@@ -248,7 +249,7 @@ class ResNetCbam(nn.Module):
                  attention_kernel_size=3, 
                  attention_num_conv=3,
                  backbone_weights=None,
-                 device="cpu"):
+                 device="cuda:0"):
         super(ResNetCbam, self).__init__()
         if model_name in ["resnet18_cbam_mask", "resnet18_cbam"]:
             model = resnet18
@@ -276,8 +277,7 @@ class ResNetCbam(nn.Module):
             # state.update(state_dict)
             new_state_dict={k:v if v.size()==cur_state[k].size()  else  cur_state[k] for k,v in zip(cur_state.keys(), pretrain_state.values())}
             self.net.load_state_dict(new_state_dict, strict=False)
-            # self.net.load_state_dict(pretrain_state, strict=False)
-        # load net weight if given
+            # self.net.load_state_dict(pretrain_state, strict=False)        
         # self.net = model
         num_features = planes[-1]
         # self.net = nn.Sequential(*list(model.children())[:-2])
@@ -285,11 +285,15 @@ class ResNetCbam(nn.Module):
         self.fc = nn.Linear(num_features, num_classes)
         if use_mask:
             saliency_use_cam = not use_cbam
-            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=saliency_use_cam, cbam_param=cbam_param, device=device)           
+            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=saliency_use_cam, cbam_param=cbam_param, device=device).to(device)
+            initialize_weights(self.saliency)
 
     def forward(self, x):
         x, fs = self.net(x)
         if self._use_mask:
+            # print(self.saliency)
+            # for param in self.saliency.parameters():
+            #     print(param.data)
             mask = self.saliency(fs)
             # apply attention on the logit feature
             if x.shape[0] == mask.shape[0]:

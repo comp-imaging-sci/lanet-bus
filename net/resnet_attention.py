@@ -215,8 +215,8 @@ class ResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[1], use_cbam=use_cbam, cbam_param=cbam_param)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2], use_cbam=use_cbam, cbam_param=cbam_param)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        # self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -427,6 +427,8 @@ def wide_resnet101_2(pretrained: bool = False, progress: bool = True, **kwargs: 
 
 if __name__ == '__main__':
     # test
+    import random
+    random.seed(1)
     x = torch.rand(2, 3, 224, 224)
     #res = resnet18(pretrained=True, use_cbam=True, cbam_param={"reduction_ratio": 16, "no_channel": True})
     res = resnet18(pretrained=True, use_cbam=False, cbam_param={"reduction_ratio": 16, "no_channel": True})
