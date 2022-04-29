@@ -1,5 +1,8 @@
 import torch 
-from net.model import get_model
+try:
+    from net.model import get_model
+except:
+    from .net.model import get_model
 from data import prepare_data
 import fire
 import numpy as np

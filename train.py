@@ -2,7 +2,10 @@ import torch
 import torch.optim as optim 
 import torch.nn as nn
 from data import prepare_data
-from net.model import get_model
+try:
+    from net.model import get_model
+except:
+    from .net.model import get_model
 import copy 
 import time, os
 import fire
