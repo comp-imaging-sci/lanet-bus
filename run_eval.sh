@@ -6,7 +6,8 @@ no_channel=False
 dataset="BUSI"
 model_name="resnet50"
 map_size=$(expr $img_size / 32)
-declare -a StringArray=( "exp1-${model_name}-cbam=${use_cbam}-mask=${use_mask}-no_channel=${no_channel}-size=${img_size}-cls=2/best_model.pt" )
+exp="exp1"
+declare -a StringArray=( "${exp}-${model_name}-cbam=${use_cbam}-mask=${use_mask}-no_channel=${no_channel}-size=${img_size}-cls=2/best_model.pt" )
 for model in ${StringArray[@]};
 do
     full_path="${dataset}_train/$model"

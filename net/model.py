@@ -294,8 +294,8 @@ class ResNetCbam(nn.Module):
             #     print(param.data)
             mask = self.saliency(fs)
             # apply attention on the logit feature
-            if x.shape[0] == mask.shape[0]:
-                x = x + mask * x 
+            # if x.shape[0] == mask.shape[0]:
+            x = x + mask * x 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)

@@ -95,7 +95,7 @@ def train(model,
                         batch_size = outputs[0].shape[0]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
                         mask_exist = mask_exist.view([batch_size, 1, 1, 1])
-                        mask_pred = nn.Sigmoid()(outputs[1]) * mask_exist 
+                        mask_pred = outputs[1] * mask_exist 
                         mask_loss = mask_criterion(mask_pred, masks_inter)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
