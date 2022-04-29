@@ -41,7 +41,8 @@ def train(model,
     best_test_model = os.path.join(model_save_path, "best_model.pt") 
     if model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
         # mask_criterion = nn.L1Loss()
-        mask_criterion = nn.BCEWithLogitsLoss().to(device)
+        # mask_criterion = nn.BCEWithLogitsLoss().to(device)
+        mask_criterion = nn.BCEsLoss().to(device)
         if mask_weight is None:
             mask_weight = 1.0 
     for epoch in range(num_epochs):
@@ -94,7 +95,7 @@ def train(model,
                         batch_size = outputs[0].shape[0]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
                         mask_exist = mask_exist.view([batch_size, 1, 1, 1])
-                        mask_pred = outputs[1] * mask_exist 
+                        mask_pred = nn.Sigmoid()(outputs[1]) * mask_exist 
                         mask_loss = mask_criterion(mask_pred, masks_inter)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
@@ -281,7 +282,7 @@ def run(model_name,
     print("Val acc history: ", hist)
 
 if __name__ == "__main__":
-    fire.Fire(run)
+    # fire.Fire(run)
     # # training config
     # input_size = 224
     # num_classes = 3 
@@ -291,4 +292,12 @@ if __name__ == "__main__":
     # device = "cuda:0"
     # input_dir = "/shared/anastasio5/COVID19/data/covidx"
     # model_save_path = "covidx_res50"
-
+    loss = nn.BCELoss(reduction="none")
+    # loss = nn.CrossEntropyLoss()
+    x = torch.zeros(7,7)
+    # x = nn.Sigmoid()(x)
+    # x[1,1]=1
+    y = torch.ones(7,7)
+    # y[1,1]=1
+    z = loss(x,x)
+    print(z)

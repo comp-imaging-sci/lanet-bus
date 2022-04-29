@@ -148,7 +148,7 @@ class SaliencyNet(nn.Module):
         s = []
         for i, f in enumerate(x):
             #_, si = self.cbams[i](f)
-            si, _ = self.cbams[i](f)
+            si = self.cbams[i](f)
             si = self.squeeze[i](si)
             si = self.upsample(si)
             s.append(si)

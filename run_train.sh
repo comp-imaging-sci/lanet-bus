@@ -37,7 +37,8 @@ python train.py --model_name=$model_name \
                 --map_size=$map_size \
                 --attention_kernel_size=3 \
                 --attention_num_conv=3 \
-                --baskbone_weights="$backbone_weight/best_model.pt"
+                --backbone_weights="$backbone_weight"\
+                --mask_weight=1
                 #--mask_annotate_file="data/mayo_patient_info.csv" \
                 #--pretrained_weights="/shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_mask_448/best_model.pt" \
 
