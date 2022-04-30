@@ -1,10 +1,10 @@
 #!/bin/bash
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
-model_name="resnet50_cbam_mask"
+model_name="resnet18_cbam_mask"
 image_size=512
 map_size=$(expr $image_size / 32)
-datatype="BUSI"
-exp="exp10"
+datatype="MAYO"
+exp="exp14"
 num_classes=2
 use_mask=True
 channel_att=True
@@ -16,10 +16,10 @@ fi
 
 
 saliency_weight=""
-backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp6-resnet50-mask=False-channel_att=False-size=512-cls=2/best_model.pt"
+#backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp6-resnet50-mask=False-channel_att=False-size=512-cls=2/best_model.pt"
 #backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp5-resnet50-mask=False-channel_att=False-size=256-cls=2/best_model.pt"
 #backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp7-resnet18-mask=False-channel_att=False-size=256-cls=2/best_model.pt"
-#backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model.pt"
+backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model.pt"
 
 python train.py --model_name=$model_name \
                 --image_size=$image_size \

@@ -1,11 +1,11 @@
 #!/bin/bash
-img_size=256
-use_mask=False
-channel_att=False
+img_size=512
+use_mask=True
+channel_att=True
 dataset="BUSI"
-model_name="resnet50"
+model_name="resnet50_cbam_mask"
 map_size=$(expr $img_size / 32)
-exp="exp1"
+exp="exp10"
 declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
 for model in ${StringArray[@]};
 do
