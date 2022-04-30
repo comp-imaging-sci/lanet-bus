@@ -213,10 +213,12 @@ def run(model_name,
         train_file = "data/busi_train_binary.txt"
         test_file = "data/busi_test_binary.txt"
     elif dataset == "MAYO":
-        #train_file = "data/mayo_exp_wo_bb.txt"
-        #test_file = "data/mayo_exp_wo_bb.txt"
         train_file = "data/mayo_train_mask_v2.txt"
         test_file  = "data/mayo_test_mask_v2.txt"
+    elif dataset == "MAYO_bbox":
+        train_file = "data/mayo_train_bbox.txt"
+        test_file = "data/mayo_train_bbox.txt"
+        dataset = "MAYO"
     elif dataset == "test_BUSI": 
         train_file = "example/debug_BUSI.txt"
         test_file  = "example/debug_BUSI.txt"

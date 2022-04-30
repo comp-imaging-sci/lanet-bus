@@ -71,3 +71,15 @@ python train.py --model_name=$model_name \
 
 # exp 15-16, size = {256, 512}
 # resnet18-cbam-mask mask=True channel_att=True class=2 MAYO (load pre-trained saliency)
+
+# exp 21-22, size = {256, 512}
+# resnet50 mask=False channel_att=False class=2 MAYO_bbox
+
+# exp 23-24, size = {256, 512}
+# resnet18 mask=False channel_att=False class=2 MAYO_bbox
+
+# exp 25-26, size = {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True class=2 MAYO_bbox (load pre-trained saliency)
+
+# exp 26-27, size = {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True class=2 MAYO_bbox (load pre-trained saliency)
