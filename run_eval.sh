@@ -2,10 +2,10 @@
 img_size=512
 use_mask=True
 channel_att=True
-dataset="BUSI"
-model_name="resnet50_cbam_mask"
+dataset="MAYO"
+model_name="resnet18_cbam_mask"
 map_size=$(expr $img_size / 32)
-exp="exp10"
+exp="exp14"
 declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
 for model in ${StringArray[@]};
 do
