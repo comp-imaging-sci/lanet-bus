@@ -75,7 +75,7 @@ def train(model,
                         mask_loss.backward()
                         optimizer.step()
                 running_loss += mask_loss.item() * inputs.size(0)
-                running_corrects += np.sum(mask_pred.data.cpu().numpy() == labels.data.cpu().numpy())
+                running_corrects += np.sum(mask_pred_cp.data.cpu().numpy() == labels.data.cpu().numpy())
             datasize = len(dataloader[phase].dataset)
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects / datasize / (featmap_size * featmap_size)
