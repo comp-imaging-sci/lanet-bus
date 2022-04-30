@@ -1,6 +1,6 @@
 # cyclegan_testing.sub
 
-Executable = run_train.sh
+Executable = run_train_mask.sh
 # argument = " "
 #
 # FILE TRANSFER ARGUMENTS
@@ -21,6 +21,6 @@ getenv = true
 request_gpus = 1
 
 #Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet50_cbam_mask_256_ma/train.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp10_train.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp10_train.err
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp17_train.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp17_train.err
 Queue

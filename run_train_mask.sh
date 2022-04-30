@@ -4,7 +4,7 @@ model_name="resnet50_cbam_mask"
 image_size=256
 map_size=$(expr $image_size / 32)
 datatype="All"
-exp="exp12"
+exp="exp17"
 num_classes=2
 use_mask=True
 channel_att=True
@@ -15,18 +15,18 @@ if [ ! -d $save_path ]; then
 fi 
 
 saliency_weights="test/best_model.pt"
-# backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp6-resnet50-cbam=False-mask=False-channel_att=True-size=512-cls=2/best_model.pt"
+#backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp6-resnet50-mask=False-channel_att=True-size=512-cls=2/best_model.pt"
 backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp5-resnet50-mask=False-channel_att=True-size=256-cls=2/best_model.pt"
-#backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp7-resnet18-cbam=False-mask=False-channel_att=True-size=256-cls=2/best_model.pt"
-#backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp8-resnet18-cbam=False-mask=False-channel_att=True-size=512-cls=2/best_model.pt"
+#backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp7-resnet18-mask=False-channel_att=True-size=256-cls=2/best_model.pt"
+#backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp8-resnet18-mask=False-channel_att=True-size=512-cls=2/best_model.pt"
 
 python train_mask.py --model_name=$model_name \
                 --image_size=$image_size \
                 --num_classes=$num_classes \
-                --batch_size=2 \
-                --num_epochs=5 \
+                --batch_size=12 \
+                --num_epochs=100 \
                 --model_save_path=$save_path \
-                --device="cpu" \
+                --device="cuda:0" \
                 --lr=0.0001 \
                 --moment=0.9 \
                 --use_pretrained=True \
