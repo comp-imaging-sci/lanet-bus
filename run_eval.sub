@@ -21,6 +21,6 @@ getenv = true
 request_gpus = 1  
 
 #Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet18_448_001-118.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp1-resnet50-cbam=False-mask=False-no_channel=False-size=256-cls=2.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp1-resnet50-cbam=False-mask=False-no_channel=False-size=256-cls=2.err
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp1.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp1.err
 Queue

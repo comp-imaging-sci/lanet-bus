@@ -6,7 +6,7 @@ dataset="BUSI"
 model_name="resnet50"
 map_size=$(expr $img_size / 32)
 exp="exp1"
-declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${no_channel}-size=${img_size}-cls=2/best_model.pt" )
+declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
 for model in ${StringArray[@]};
 do
     full_path="${dataset}_train/$model"

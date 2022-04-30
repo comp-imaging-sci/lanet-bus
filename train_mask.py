@@ -69,7 +69,7 @@ def train(model,
                     # get mask
                     mask_pred_cp = torch.clone(mask_pred)
                     mask_pred_cp[mask_pred >= 0.5] = 1
-                    mask_pred_cp[mask_pred < 1] = 0
+                    mask_pred_cp[mask_pred < 0.5] = 0
                     
                     if phase == "train":
                         mask_loss.backward()
@@ -138,7 +138,7 @@ def run(model_name,
         dilute_mask=0,
         mask_weight=None,
         use_mask=True,
-        channel_att=False,
+        channel_att=True,
         map_size=14,
         reduction_ratio=16, 
         attention_kernel_size=3, 
