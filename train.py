@@ -217,7 +217,7 @@ def run(model_name,
         test_file  = "data/mayo_test_mask_v2.txt"
     elif dataset == "MAYO_bbox":
         train_file = "data/mayo_train_bbox.txt"
-        test_file = "data/mayo_train_bbox.txt"
+        test_file = "data/mayo_test_bbox.txt"
         dataset = "MAYO"
     elif dataset == "test_BUSI": 
         train_file = "example/debug_BUSI.txt"

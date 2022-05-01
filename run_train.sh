@@ -3,8 +3,8 @@
 model_name="resnet18_cbam_mask"
 image_size=512
 map_size=$(expr $image_size / 32)
-datatype="BUSI"
-exp="exp14"
+datatype="MAYO_bbox"
+exp="exp28"
 num_classes=2
 use_mask=True
 channel_att=True
@@ -22,6 +22,9 @@ fi
 #saliency_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp19-resnet18_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt"
 backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt"
 saliency_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp20-resnet18_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt"
+#backbone_weight=""
+#saliency_weight=""
+
 
 python train.py --model_name=$model_name \
                 --image_size=$image_size \
