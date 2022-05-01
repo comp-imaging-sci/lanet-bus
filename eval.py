@@ -99,14 +99,14 @@ class Eval():
         images = image_df.iloc[:, 0]
         if self.dataset == "BUSI":
             mask_coord = None
-        elif self.dataset == "MAYO":
+        elif self.dataset in ["MAYO", "MAYO_bbox"]:
             mask_str = image_df.iloc[:, -1].tolist()
             mask_coord = np.array([x.split(":") for x in mask_str], dtype=int)
         image_list = []
         real_mask_list = []
         for image in images:
             image_tensor = read_image_tensor(image, self.image_size)
-            mask = get_image_mask(image, self.image_size, dataset=self.dataset,mask_coord=mask_coord)
+            mask = get_image_mask(image, self.image_size, dataset=self.dataset, mask_coord=mask_coord)
             # mask = mask / 255
             mask = np.expand_dims(mask, 0)
             mask = torch.tensor(mask)
@@ -124,7 +124,7 @@ class Eval():
             if self.model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                 # interpolate mask to original size
                 prob = torch.nn.functional.interpolate(outputs[1], size=(self.image_size, self.image_size), mode="bilinear", align_corners=True)
-                mask_pred = torch.where(mask_pred>mask_thres, 1, 0)
+                mask_pred = torch.where(prob>mask_thres, 1, 0)
             #else:
             #    _, prob = torch.max(outputs, 1, keepdim=True)
         draw_segmentation_mask(image_tensor, real_mask_tensor, mask_pred, mask_save_file) 
@@ -145,10 +145,12 @@ class Eval():
                 train_file = "data/busi_train_binary.txt"
                 test_file = "data/busi_test_binary.txt"
             elif self.dataset == "MAYO":
-                #train_file = "data/mayo_train_mask_conf.txt"
-                #test_file = "data/mayo_test_mask_conf.txt"
                 train_file = "data/mayo_train_mask_v2.txt"
                 test_file  = "data/mayo_test_mask_v2.txt"
+            elif self.dataset == "MAYO_bbox":
+                train_file = "data/mayo_train_bbox.txt"
+                test_file = "data/mayo_test_bbox.txt"
+                self.dataset = "MAYO"
             elif self.dataset == "test_BUSI":
                 train_file = "example/debug_BUSI.txt"
                 test_file  = "example/debug_BUSI.txt"
@@ -178,7 +180,7 @@ class Eval():
                 result_matrics = np.zeros((2, 2))  
             else:
                 result_matrics = np.zeros((3, 3)) 
-        elif self.dataset == "MAYO":
+        elif self.dataset in ["MAYO", "MAYO_bbox"]:
             result_matrics = np.zeros((2, 2)) 
         else:
             result_matrics = np.zeros((2, 2))
@@ -228,8 +230,12 @@ class Eval():
                 train_file = "data/busi_train_binary.txt"
                 test_file = "data/busi_test_binary.txt"
             elif self.dataset == "MAYO":
-                train_file = "data/mayo_train_mask.txt"
-                test_file = "data/mayo_test_mask.txt"
+                train_file = "data/mayo_train_mask_v2.txt"
+                test_file = "data/mayo_test_mask_v2.txt"
+            elif self.dataset == "MAYO_bbox":
+                train_file = "data/mayo_train_bbox.txt"
+                test_file = "data/mayo_test_bbox.txt"
+                self.dataset = "MAYO"
             elif self.dataset == "test_BUSI":
                 train_file = "example/debug_BUSI.txt"
                 test_file = "example/debug_BUSI.txt"
@@ -271,9 +277,12 @@ class Eval():
     def saliency(self, image_path, target_category=None, saliency_file=None, method="grad-cam"):
         image_tensor = read_image_tensor(image_path, self.image_size)
         try:
-            target_layers = [self.model.net[-1][-1]]
+            # print(self.model.net.layer4[-1])
+            # target_layers = [self.model.net.layer4[-1][-1]]
+            target_layers = [self.model.net.layer4[-1]]
         except:
-            target_layers = [self.model.net.net[-1][-1]]
+            # print(self.model.net[-1][-1])
+            target_layers = [self.model.net[-1][-1]]
         if method == "grad-cam":
             cam = GradCAM(model=self.model, target_layers=target_layers, use_cuda=False)
         # target_category = [int(target_category)]
@@ -292,4 +301,41 @@ class Eval():
 
     
 if __name__ == "__main__":
-    fire.Fire(Eval)
+    # fire.Fire(Eval)
+    # model_weights = "/Users/zongfan/Downloads/res50_256_mask.pt"
+    # model_weights = "/Users/zongfan/Downloads/deeplab_448.pt" 
+    # model_weights = "/Users/zongfan/Downloads/res50_256_mayo.pt"
+    model_weights = "/Users/zongfan/Downloads/res50_mask_256_mayo.pt" 
+    seg_image_file = "test/busi_sample_binary.txt"
+    mask_save_file = "test/busi_sample_mask_deeplab.png"
+    # model_name = "resnet50_cbam_mask"
+    # model_name = "deeplabv3"
+    model_name = "resnet50_cbam_mask"
+    img_size = 256
+    num_classes = 2
+    dataset = "BUSI"
+    map_size = img_size // 32
+    use_mask = True 
+    channel_att = True
+    mask_thres = 0.3
+    multi_gpu = False
+    image_path = "test/IM00033 annotated.png"
+    saliency_file = "test/test_saliency_2.png"
+
+    evaluator = Eval(model_name=model_name, 
+                 num_classes=num_classes, 
+                 model_weights=model_weights,  
+                 image_size=img_size, 
+                 device="cpu",
+                 dataset=dataset,
+                 multi_gpu=multi_gpu,
+                 use_mask=use_mask,
+                 channel_att=channel_att,
+                 reduction_ratio=16, 
+                 attention_num_conv=3, 
+                 attention_kernel_size=3,
+                 map_size=map_size)
+
+    # evaluator.image2mask(seg_image_file, mask_save_file, mask_thres=mask_thres)
+    # evaluator.iou(test_file=seg_image_file, mask_thres=0.56)
+    evaluator.saliency(image_path, saliency_file=saliency_file)

@@ -22,7 +22,8 @@ saliency_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/e
 # saliency_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp19-resnet18_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt"
 #backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt"
 # saliency_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp20-resnet18_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt"
-
+#backbone_weight=""
+#saliency_weight=""
 python train.py --model_name=$model_name \
                 --image_size=$image_size \
                 --num_classes=$num_classes \
@@ -81,5 +82,5 @@ python train.py --model_name=$model_name \
 # exp 25-26, size = {256, 512}
 # resnet50-cbam-mask mask=True channel_att=True class=2 MAYO_bbox (load pre-trained saliency)
 
-# exp 26-27, size = {256, 512}
+# exp 27-28, size = {256, 512}
 # resnet18-cbam-mask mask=True channel_att=True class=2 MAYO_bbox (load pre-trained saliency)
