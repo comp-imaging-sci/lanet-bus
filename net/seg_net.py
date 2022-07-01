@@ -23,8 +23,17 @@ class DeepLabV3(nn.Module):
         # x = self.m(x['out'])
         return x['out']
 
+def deeplabv3(backbone="resnet50", num_classes=2, pretrained=True):
+    if backbone == "resnet50":
+        model = models.segmentation.deeplabv3_resnet50(pretrained_backbone=pretrained, num_classes=num_classes)
+    elif backbone == "resnet101":
+        model = models.segmentation.deeplabv3_resnet101(pretrained_backbone=pretrained, num_classes=num_classes)
+    return model
+
 if __name__ == "__main__":
     model = DeepLabV3(3)
+    # model = deeplabv3(num_classes=2)
     inputs = torch.rand(3,3,224,224)
     res = model(inputs)
+    # print(res['out'].shape)
     print(res.shape)

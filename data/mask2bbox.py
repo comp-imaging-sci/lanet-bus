@@ -38,6 +38,11 @@ def busi_mask2bbox(busi_file, save_file):
 
 
 if __name__ == "__main__":
-    input_file = "busi_test_binary.txt"
-    save_file = "busi_test_binary_bbox.txt"
+    input_file = "busi_train_binary.txt"
+    save_file = "busi_train_binary_bbox.txt"
     busi_mask2bbox(input_file, save_file)
+    # f = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/benign/benign (82)_mask.png"
+    # mask = cv2.imread(f)
+    # cv2.rectangle(mask, (340,177), (493, 294), (255, 0, 0), 2)
+    # cv2.imshow("test", mask)
+    # cv2.waitKey(0)

@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import transforms, datasets
+from torch
+# import transforms
 from PIL import Image
 #import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
@@ -56,33 +58,37 @@ class BUSI_dataset(Dataset):
         img = img.convert("RGB")
         label = self._img_labels[idx]
         label_id = BUSI_LABELS.index(label)
+        target = {}
+        target["labels"] = label_id
+        bbox = [int(x) for x in self._img_bbox[idx].split(":")]
+        target["boxes"] = [bbox]
+        target["area"] = [(bbox[3]-bbox[1])*(bbox[2]-bbox[0])]
+        target["image_id"] = [idx]
+        target["iscrowd"] = [0]
         #onehot_id = torch.nn.functional.one_hot(torch.Tensor(label_id), len(LABELS))
         # get the identical random seed for both image and mask
-        seed = random.randint(0, 2147483647)
-        if self._transform:
+        # seed = random.randint(0, 2147483647)
+        # if self._transform:
             # state = torch.get_rng_state()
-            random.seed(seed)
-            torch.manual_seed(seed)
-            img = self._transform(img)
+            # random.seed(seed)
+            # torch.manual_seed(seed)
+            # img = self._transform(img)
         # load mask
         mask = []
         if self._mask:
             mask = get_image_mask(image_name, dataset="BUSI")
             mask = dilute_mask(mask, dilute_distance=self._mask_dilute)
             # assign class label
-            mask = Image.fromarray(mask)
-            if self._mask_transform:
-                random.seed(seed)
-                torch.manual_seed(seed)
-                # torch.set_rng_state(state)
-                mask = self._mask_transform(mask)
-                mask = mask.type(torch.float)
-                # mask = mask * label_id  # normal case is identical to backaground
+            # mask = Image.fromarray(mask)
+            target["mask"] = [mask//255]
+        if self._transform:
+            img, target = self._transform(img, target)
         # dummy input for testing 
         # img = torch.rand(3, 256,256)
         # label_id = 1
         # mask = torch.rand(1, 256, 256)
-        return {"image": img, "label": label_id, "mask": mask, "mask_exist": 1}
+        # return {"image": img, "label": label_id, "mask": mask, "mask_exist": 1}
+        return img, target
 
 
 # input image width/height ratio
@@ -184,6 +190,7 @@ class MAYO_dataset(Dataset):
         # mask = torch.rand(1, 256, 256)
         # mask_exist = 1 
         return {"image": img, "label": label_id, "mask": mask, "mask_exist": mask_exist}
+
 
 
 def prepare_data(config):
@@ -313,15 +320,16 @@ if __name__ == "__main__":
      from util import draw_segmentation_mask
      image_dir = "/Users/zongfan/Projects/data/originals"
      # image_dir = "/Users/zongfan/Projects/data/Dataset_BUSI_with_GT"
-     config = {"image_size": 224, "train": "train_sample.txt", "test": "test_sample.txt", "dataset": "BUSI", "mask": True}
+     config = {"image_size": 224, "train": "test/busi_sample_binary_bbox.txt", "test": "test/busi_sample_binary_bbox.txt", "dataset": "BUSI", "mask": True}
      ds, _ = prepare_data(config)
      batch_size = 2
      dataloader = torch.utils.data.DataLoader(ds["train"], batch_size=batch_size)
-     for data in dataloader:
-        imgs = data['image']
-        masks = data["mask"]
-        print(masks.shape)
-        break
+     for img, target in dataloader:
+        imgs = img
+        masks = target["masks"]
+        print(target["labels"], target["image_id"], target["boxes"], target["area"], target["iscrowd"])
+        # print(masks.shape)
+        # break
         # print(imgs.shape)
         # img_shape = imgs.shape
         # imgs = imgs.view(img_shape[0]*img_shape[1], img_shape[2], img_shape[3], img_shape[4])
@@ -333,11 +341,14 @@ if __name__ == "__main__":
             img = (img + 1.) / 2. * 255
             mask = masks[i].numpy()
             mask = mask.repeat(3, axis=0)
-            mask = mask * 255
+            # mask = mask
+            bbox = target["boxes"][i]
+            cv2.rectangle(mask, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (0, 0, 255), 2)
             img = np.concatenate([img, mask], axis=2)
             x = np.transpose(img, (1, 2, 0))
             x = x.astype(np.uint8)
             x = cv2.cvtColor(x, cv2.COLOR_RGB2BGR)
+
             cv2.imshow("test", x)
             if cv2.waitKey(0) == ord("q"):
                 exit()

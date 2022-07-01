@@ -98,15 +98,15 @@ class Eval():
         image_df = pd.read_csv(seg_image_list, header=None)
         images = image_df.iloc[:, 0]
         if self.dataset == "BUSI":
-            mask_coord = None
+            mask_coord = [None] * len(images)
         elif self.dataset in ["MAYO", "MAYO_bbox"]:
             mask_str = image_df.iloc[:, -1].tolist()
             mask_coord = np.array([x.split(":") for x in mask_str], dtype=int)
         image_list = []
         real_mask_list = []
-        for image in images:
+        for i, image in enumerate(images):
             image_tensor = read_image_tensor(image, self.image_size)
-            mask = get_image_mask(image, self.image_size, dataset=self.dataset, mask_coord=mask_coord)
+            mask = get_image_mask(image, self.image_size, dataset=self.dataset, mask_coord=mask_coord[i])
             # mask = mask / 255
             mask = np.expand_dims(mask, 0)
             mask = torch.tensor(mask)
@@ -279,9 +279,10 @@ class Eval():
         try:
             # print(self.model.net.layer4[-1])
             # target_layers = [self.model.net.layer4[-1][-1]]
+            # print("1", self.model.avgpool) 
             target_layers = [self.model.net.layer4[-1]]
         except:
-            # print(self.model.net[-1][-1])
+            # print("2", self.model.net[-1][-1])
             target_layers = [self.model.net[-1][-1]]
         if method == "grad-cam":
             cam = GradCAM(model=self.model, target_layers=target_layers, use_cuda=False)
@@ -302,40 +303,47 @@ class Eval():
     
 if __name__ == "__main__":
     fire.Fire(Eval)
-    # model_weights = "/Users/zongfan/Downloads/res50_256_mask.pt"
-    # model_weights = "/Users/zongfan/Downloads/deeplab_448.pt" 
-    # model_weights = "/Users/zongfan/Downloads/res50_256_mayo.pt"
-    #model_weights = "/Users/zongfan/Downloads/res50_mask_256_mayo.pt" 
-    #seg_image_file = "test/busi_sample_binary.txt"
-    #mask_save_file = "test/busi_sample_mask_deeplab.png"
-    ## model_name = "resnet50_cbam_mask"
-    ## model_name = "deeplabv3"
-    #model_name = "resnet50_cbam_mask"
-    #img_size = 256
-    #num_classes = 2
-    #dataset = "BUSI"
-    #map_size = img_size // 32
-    #use_mask = True 
-    #channel_att = True
-    #mask_thres = 0.3
-    #multi_gpu = False
-    #image_path = "test/IM00033 annotated.png"
-    #saliency_file = "test/test_saliency_2.png"
+    # model_weights = "test/res50_mask_256_busi.pt"
+    # # # model_weights = "test/deeplab_448.pt" 
+    # # # model_weights = "test/res50_256_mayo.pt"
+    # # # model_weights = "test/res50_256_busi.pt"
+    # # model_weights = "test/res50_mask_256_mayo.pt" 
+    # # seg_image_file = "test/mayo_data/mayo_sample.txt"
+    # # # seg_image_file = "test/busi_sample_binary.txt"
+    # # # mask_save_file = "plot/mayo_sample_mask.png"
+    # # mask_save_file = "plot/busi_sample_mask.png"
+    # # # model_name = "resnet50_cbam_mask"
+    # # # model_name = "deeplabv3"
+    # model_name = "resnet50_cbam_mask"
+    # img_size = 256
+    # num_classes = 2
+    # dataset = "MAYO"
+    # map_size = img_size // 32
+    # use_mask = True
+    # channel_att = True
+    # mask_thres = 0.56
+    # multi_gpu = False
+    # image_path = "test/IM00033 annotated.png"
+    # saliency_file = "test/test_saliency_2.png"
+    # # # image_path = "/Users/zongfan/Downloads/cancer_ultrasound_project/breast_cancer_project/test/test_images/images/214_IM00004 annotated.png"
+    # # # image_path = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/malignant/malignant (14).png"
+    # # # image_path = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/benign/benign (274).png"
+    # # # saliency_file = "plot/res50_mask_256_busi_malig_saliency_1.png"
+    # evaluator = Eval(model_name=model_name, 
+    #              num_classes=num_classes, 
+    #              model_weights=model_weights,  
+    #              image_size=img_size, 
+    #              device="cpu",
+    #              dataset=dataset,
+    #              multi_gpu=multi_gpu,
+    #              use_mask=use_mask,
+    #              channel_att=channel_att,
+    #              reduction_ratio=16, 
+    #              attention_num_conv=3, 
+    #              attention_kernel_size=3,
+    #              map_size=map_size)
 
-    #evaluator = Eval(model_name=model_name, 
-    #             num_classes=num_classes, 
-    #             model_weights=model_weights,  
-    #             image_size=img_size, 
-    #             device="cpu",
-    #             dataset=dataset,
-    #             multi_gpu=multi_gpu,
-    #             use_mask=use_mask,
-    #             channel_att=channel_att,
-    #             reduction_ratio=16, 
-    #             attention_num_conv=3, 
-    #             attention_kernel_size=3,
-    #             map_size=map_size)
-
-    ## evaluator.image2mask(seg_image_file, mask_save_file, mask_thres=mask_thres)
-    ## evaluator.iou(test_file=seg_image_file, mask_thres=0.56)
-    #evaluator.saliency(image_path, saliency_file=saliency_file)
+    # # # evaluator.image2mask(seg_image_file, mask_save_file, mask_thres=mask_thres)
+    # # evaluator.iou(test_file=seg_image_file, mask_thres=0.35)
+    # evaluator.saliency(image_path, saliency_file=saliency_file)
+>>>>>>> b04bfdb49ac58863efa60bcf413a5110da9ee3bb
