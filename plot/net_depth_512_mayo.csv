@@ -1,5 +1,5 @@
 Network Precision Acc-Error Sensitivity Sens-Error Specificity Speci-Error F1-Score F1-Error
 ResNet18 83.7 1.2 85.5 1.4 85.5 1.4 84.3 1.2
 ResNet18+LA-Net 97.0 0.8 95.4 0.7 95.4 0.7 96.0 0.1
-ResNet50 84.8 1.7 90.8 5.0 87.4 1.7 85.2 2.0
+ResNet50 84.8 1.7 87.4 1.7 87.4 1.7 85.2 2.0
 ResNet50+LA-Net 92.0 0.3 92.6 0.7 92.6 0.7 92.3 0.1

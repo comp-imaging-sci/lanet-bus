@@ -241,7 +241,9 @@ class ResNetCbam(nn.Module):
                  use_pretrained=True, 
                  map_size=448,
                  use_mask=True,
-                 channel_att=False,
+                 channel_att=True,
+                 spatial_att=True,
+                 final_att=True,
                  reduction_ratio=16, 
                  attention_kernel_size=3, 
                  attention_num_conv=3,
@@ -259,6 +261,7 @@ class ResNetCbam(nn.Module):
         cbam_param = dict(sp_kernel_size=attention_kernel_size, 
                           sp_num_conv=attention_num_conv,
                           channel_att=channel_att,
+                          spatial_att=spatial_att,
                           reduction_ratio=reduction_ratio,
                           )
         self.net = model(pretrained=use_pretrained, 
@@ -280,8 +283,9 @@ class ResNetCbam(nn.Module):
         # self.net = nn.Sequential(*list(model.children())[:-2])
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.fc = nn.Linear(num_features, num_classes)
+        self.final_att = final_att
         if use_mask:
-            self.saliency = SaliencyNet(planes=planes, map_size=map_size, use_cbam=True, cbam_param=cbam_param).to(device)
+            self.saliency = SaliencyNet(planes=planes, map_size=map_size, cbam_param=cbam_param).to(device)
             if os.path.exists(saliency_weights):
                 s_pretrain_state=torch.load(saliency_weights, map_location=device)
                 # cur_s_state = self.saliency.state_dict()
@@ -299,7 +303,8 @@ class ResNetCbam(nn.Module):
             mask = self.saliency(fs)
             # apply attention on the logit feature
             # if x.shape[0] == mask.shape[0]:
-            x = x + mask * x 
+            if self.final_att:
+                x = x + mask * x 
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.fc(x)
@@ -353,6 +358,8 @@ def get_model(model_name,
         model = ResNetCbam(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size,
                            use_mask=kwargs.get("use_mask", True),
                            channel_att=kwargs.get("channel_att", True),
+                           spatial_att=kwargs.get("spatial_att", True),
+                           final_att=kwargs.get("final_att", True),
                            reduction_ratio=kwargs.get("reduction_ratio", 16), 
                            attention_kernel_size=kwargs.get("attention_kernel_size", 3), 
                            attention_num_conv=kwargs.get("attention_num_conv", 3),

@@ -380,7 +380,7 @@ def draw_HN_method_effect(image_name):
 
 
 def draw_net_effect_binary(image_name):
-    csv_file = "net_depth_512_busi.csv"
+    csv_file = "net_depth_512_mayo.csv"
     
     df = pd.read_csv(csv_file, sep=" ")
     net = df.Network
@@ -431,5 +431,5 @@ if __name__ == "__main__":
     # draw_data_size_effect(img_name)
     # img_name = "method_effect_32_HN.png"
     # draw_HN_method_effect(img_name)
-    img_name = "net_effect_512_busi.png"
+    img_name = "net_effect_512_mayo.png"
     draw_net_effect_binary(img_name)
