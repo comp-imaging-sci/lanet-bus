@@ -8,7 +8,9 @@ exp="exp28"
 num_classes=2
 use_mask=True
 channel_att=True
-save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${image_size}-cls=${num_classes}"
+spatial_att=true
+final_att=True
+save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
 
 if [ ! -d $save_path ]; then
     mkdir $save_path
