@@ -16,9 +16,9 @@ if [ ! -d $save_path ]; then
     mkdir $save_path
 fi 
 
-saliency_weights="test/best_model.pt"
+# saliency_weights="test/best_model.pt"
 # backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp6-resnet50-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt"
-backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp5-resnet50-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt"
+# backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp5-resnet50-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt"
 #backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp7-resnet18-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt"
 #backbone_weight="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt"
 
@@ -43,9 +43,9 @@ python train_mask.py --model_name=$model_name \
                 --map_size=$map_size \
                 --attention_kernel_size=3 \
                 --attention_num_conv=3 \
-                --backbone_weights="$backbone_weight"\
-                --saliency_weights=$saliency_weight\
-                --mask_weight=1
+                --mask_weight=1 \
+                # --backbone_weights="$backbone_weight"\
+                # --saliency_weights=$saliency_weight\
                 #--mask_annotate_file="data/mayo_patient_info.csv" \
                 #--pretrained_weights="/shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_mask_448/best_model.pt" \
 
