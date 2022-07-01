@@ -8,7 +8,9 @@ exp="exp12"
 num_classes=2
 use_mask=True
 channel_att=True
-save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${image_size}-cls=${num_classes}"
+spatial_att=True
+final_att=True
+save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
 
 if [ ! -d $save_path ]; then
     mkdir $save_path
@@ -35,6 +37,8 @@ python train_mask.py --model_name=$model_name \
                 --dilute_mask=0 \
                 --use_mask=$use_mask \
                 --channel_att=$channel_att \
+                --spatial_att=$spatial_att \
+                --final_att=$final_att \
                 --reduction_ratio=16 \
                 --map_size=$map_size \
                 --attention_kernel_size=3 \
