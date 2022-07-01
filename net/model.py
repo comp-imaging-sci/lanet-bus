@@ -375,7 +375,7 @@ if __name__ == "__main__":
     # model = get_model("resnet50_attention_mask", 3, use_pretrained=False, return_logit=True, return_feature=True) 
     # print(list(model.children())[:-1])
     # model = nn.Sequential(*list(model.children())[:-1])
-    backbone_w = "/Users/zongfan/Downloads/best_model.pt"
+    backbone_w = "/Users/zongfan/Downloads/backbone_w.pt"
     # backbone_w = None
     model = get_model(model_name="resnet50_cbam_mask", use_pretrained=True, image_size=256, num_classes=3, use_mask=True, channel_att=True, attention_kernel_size=3, attention_num_conv=3, backbone_weight=backbone_w, map_size=8)
     res = model(inputs)
