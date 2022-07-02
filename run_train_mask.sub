@@ -11,7 +11,7 @@ Executable = run_train_mask.sh
 
 # Only if you need to specify a machine
 #requirements = (machine == "aristotle.bioen.illinois.edu")
-#requirements = (machine == "anastasio4.bioen.illinois.edu")
+#requirements = (machine == "anastasio2.bioen.illinois.edu")
 #requirements = (machine == "anastasio5.bioen.illinois.edu")
 #requirements = (machine == "planck.bioen.illinois.edu")
 #requirements = (machine == "radon.bioen.illinois.edu")
@@ -20,7 +20,7 @@ Universe = vanilla
 getenv = true
 request_gpus = 1
 
-#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet50_cbam_mask_256_ma/train.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp19_train.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp19_train.err
+#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp19_train.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp40_train.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp40_train.err
 Queue

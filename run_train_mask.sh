@@ -1,15 +1,15 @@
 #!/bin/bash
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
 model_name="resnet18_cbam_mask"
-image_size=256
+image_size=512
 map_size=$(expr $image_size / 32)
 datatype="All"
-exp="exp19"
+exp="exp40"
 num_classes=2
 use_mask=True
 channel_att=True
 spatial_att=True
-final_att=True
+final_att=False
 save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
 
 if [ ! -d $save_path ]; then
@@ -26,7 +26,7 @@ python train_mask.py --model_name=$model_name \
                 --image_size=$image_size \
                 --num_classes=$num_classes \
                 --batch_size=12 \
-                --num_epochs=200 \
+                --num_epochs=120 \
                 --model_save_path=$save_path \
                 --device="cuda:0" \
                 --lr=0.0001 \
@@ -51,7 +51,25 @@ python train_mask.py --model_name=$model_name \
 
 
 # exp 17-18, size = {256, 512}
-# resnet50-cbam-mask mask=True channel_att=True class=2 All
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 All
 
 # exp 19-20, size = {256, 512}
-# resnet18-cbam-mask mask=True channel_att=True class=2 All
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 All
+
+# exp 29-30, size = {256, 512}
+# resnet50-cbam-mask mask=True channel_att=False spatial_att=True final_att=True class=2 All
+
+# exp 31-32, size = {256, 512}
+# resnet18-cbam-mask mask=True channel_att=False spatial_att=True final_att=True class=2 All
+
+# exp 33-34, size = {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=False final_att=True class=2 All
+
+# exp 35-36, size = {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=False final_att=True class=2 All
+
+# exp 37-38, size = {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=True final_att=False class=2 All
+
+# exp 39-40, size = {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=False class=2 All
