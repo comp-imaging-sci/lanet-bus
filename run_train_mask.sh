@@ -55,3 +55,21 @@ python train_mask.py --model_name=$model_name \
 
 # exp 19-20, size = {256, 512}
 # resnet18-cbam-mask mask=True channel_att=True class=2 All
+
+# exp 29-30, size = {256, 512}
+# resnet50-cbam-mask mask=True channel_att=False spatial_att=True final_att=True class=2 All
+
+# exp 31-32, size = {256, 512}
+# resnet18-cbam-mask mask=True channel_att=False spatial_att=True final_att=True class=2 All
+
+# exp 33-34, size = {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=False final_att=True class=2 All
+
+# exp 35-36, size = {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=False final_att=True class=2 All
+
+# exp 37-38, size = {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=True final_att=False class=2 All
+
+# exp 39-40, size = {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=False class=2 All
