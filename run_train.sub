@@ -21,6 +21,6 @@ getenv = true
 request_gpus = 1
 
 #Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet50_cbam_mask_266_ma/train.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp28_train.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp28_train.err
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp42_train.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp42_train.err
 Queue
