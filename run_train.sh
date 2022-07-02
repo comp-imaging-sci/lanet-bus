@@ -8,7 +8,7 @@ exp="exp41"
 num_classes=2
 use_mask=True
 channel_att=False
-spatial_att=true
+spatial_att=True
 final_att=True
 save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
 
@@ -26,18 +26,18 @@ backbone_weight="${ref_path}/exp5-resnet50-mask=False-channel_att=False-size=256
 #saliency_weight="${ref_path}/exp18-resnet50_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res50,512,T,T,T
 #saliency_weight="${ref_path}/exp19-resnet18_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt" # res18,256,T,T,T
 #saliency_weight="${ref_path}/exp20-resnet18_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res18,512,T,T,T
-saliency_weight="${ref_path}/exp29-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2" # res50,256,FTT
-#saliency_weight="${ref_path}/exp30-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2" # res50,512,FTT
-#saliency_weight="${ref_path}/exp31-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2" # res18,256,FTT
-#saliency_weight="${ref_path}/exp32-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2" # res18,512,FTT
-#saliency_weight="${ref_path}/exp33-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2" # res50,256,TFT
-#saliency_weight="${ref_path}/exp34-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2" # res50,512,TFT
-#saliency_weight="${ref_path}/exp35-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2" # res18,256,TFT
-#saliency_weight="${ref_path}/exp36-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2" # res18,512,TFT
-#saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2" # res50,256,TTF
-#saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2" # res50,512,TTF
-#saliency_weight="${ref_path}/exp39-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2" # res18,256,TTF
-#saliency_weight="${ref_path}/exp40-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=512-cls=2" # res18,512,TTF
+saliency_weight="${ref_path}/exp29-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res50,256,FTT
+#saliency_weight="${ref_path}/exp30-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2/best_model.pt" # res50,512,FTT
+#saliency_weight="${ref_path}/exp31-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res18,256,FTT
+#saliency_weight="${ref_path}/exp32-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2/best_model.pt" # res18,512,FTT
+#saliency_weight="${ref_path}/exp33-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2/best_model.pt" # res50,256,TFT
+#saliency_weight="${ref_path}/exp34-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2/best_model.pt" # res50,512,TFT
+#saliency_weight="${ref_path}/exp35-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2/best_model.pt" # res18,256,TFT
+#saliency_weight="${ref_path}/exp36-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2/best_model.pt" # res18,512,TFT
+#saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res50,256,TTF
+#saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res50,512,TTF
+#saliency_weight="${ref_path}/exp39-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res18,256,TTF
+#saliency_weight="${ref_path}/exp40-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=512-cls=2/best_model.pt" # res18,512,TTF
 
 python train.py --model_name=$model_name \
                 --image_size=$image_size \
