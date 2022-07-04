@@ -1,5 +1,5 @@
 #!/bin/bash
-img_size=512
+img_size=256
 use_mask=True
 channel_att=True
 dataset="MAYO_bbox"
