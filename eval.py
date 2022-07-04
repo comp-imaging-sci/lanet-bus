@@ -39,6 +39,8 @@ class Eval():
                  multi_gpu=False,
                  use_mask=True,
                  channel_att=False,
+                 spatial_att=True,
+                 final_att=True,
                  reduction_ratio=16, 
                  attention_num_conv=3, 
                  attention_kernel_size=3,
@@ -53,6 +55,8 @@ class Eval():
         self.multi_gpu = multi_gpu
         self.use_mask = use_mask
         self.channel_att = channel_att
+        self.spatial_att = spatial_att
+        self.final_att = final_att
         self.reduction_ratio = reduction_ratio
         self.attention_num_conv = attention_num_conv
         self.attention_kernel_size = attention_kernel_size
@@ -62,6 +66,8 @@ class Eval():
     def load_model(self):
         if self.use_mask:
             cbam_param = dict(channel_att=self.channel_att, 
+                          spatial_att=self.spatial_att,
+                          final_att=self.final_att,
                           reduction_ratio=self.reduction_ratio, 
                           attention_num_conv=self.attention_num_conv, 
                           attention_kernel_size=self.attention_kernel_size,

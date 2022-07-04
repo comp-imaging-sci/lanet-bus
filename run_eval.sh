@@ -35,6 +35,8 @@ do
                --multi_gpu=False \
                --use_mask=$use_mask \
                --channel_att=$channel_att \
+               --spatial_att=$spatial_att \
+               --final_att=$final_att \
                --reduction_ratio=16 \
                --attention_num_conv=3 \
                --attention_kernel_size=3 \
