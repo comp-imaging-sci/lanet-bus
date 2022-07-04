@@ -2,11 +2,13 @@
 img_size=256
 use_mask=True
 channel_att=True
-dataset="MAYO_bbox"
-model_name="resnet18_cbam_mask"
+spatial_att=False
+final_att=True
+dataset="BUSI"
+model_name="resnet50_cbam_mask"
 map_size=$(expr $img_size / 32)
-exp="exp28"
-declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
+exp="exp45"
+declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/best_model.pt" )
 for model in ${StringArray[@]};
 do
     full_path="${dataset}_train/$model"
@@ -28,11 +30,13 @@ do
                --num_classes=2 \
                --model_weights=$full_path \
                --image_size=$img_size \
-               --device="cuda:0" \
+               --device="cpu" \
                --dataset=$dataset \
                --multi_gpu=False \
                --use_mask=$use_mask \
                --channel_att=$channel_att \
+               --spatial_att=$spatial_att \
+               --final_att=$final_att \
                --reduction_ratio=16 \
                --attention_num_conv=3 \
                --attention_kernel_size=3 \

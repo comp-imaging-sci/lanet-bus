@@ -346,4 +346,3 @@ if __name__ == "__main__":
     # # # evaluator.image2mask(seg_image_file, mask_save_file, mask_thres=mask_thres)
     # # evaluator.iou(test_file=seg_image_file, mask_thres=0.35)
     # evaluator.saliency(image_path, saliency_file=saliency_file)
->>>>>>> b04bfdb49ac58863efa60bcf413a5110da9ee3bb

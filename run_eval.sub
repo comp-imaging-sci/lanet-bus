@@ -18,9 +18,9 @@ Executable = run_eval.sh
 
 Universe = vanilla
 getenv = true
-request_gpus = 1  
+request_gpus = 0 
 
-#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet18_448_001-118.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp28.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp28.err
+#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet18_445_001-118.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp45.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp45.err
 Queue
