@@ -1,14 +1,16 @@
 #!/bin/bash
-img_size=256
+img_size=512
 use_mask=True
 channel_att=True
-spatial_att=False
-final_att=True
-dataset="BUSI"
+spatial_att=True
+final_att=False
+dataset="MAYO_bbox"
 model_name="resnet50_cbam_mask"
 map_size=$(expr $img_size / 32)
-exp="exp45"
-declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/best_model.pt" )
+exp="exp62"
+#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/best_model.pt" )
+#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_86.pt" )
+declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_96.pt" )
 for model in ${StringArray[@]};
 do
     full_path="${dataset}_train/$model"
@@ -30,7 +32,7 @@ do
                --num_classes=2 \
                --model_weights=$full_path \
                --image_size=$img_size \
-               --device="cpu" \
+               --device="cuda:0" \
                --dataset=$dataset \
                --multi_gpu=False \
                --use_mask=$use_mask \
