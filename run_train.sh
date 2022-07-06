@@ -127,4 +127,10 @@ python train.py --model_name=$model_name \
 # resnet50-rasaee mask=True BUSI 
 
 # exp67-68, size = {256, 512}
+# resnet18-rasaee mask=True BUSI 
+
+# exp69-70, size = {256, 512}
 # resnet50-rasaee mask=True MAYO_bbox 
+
+# exp71-72, size = {256, 512}
+# resnet18-rasaee mask=True MAYO_bbox 
