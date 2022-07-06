@@ -60,7 +60,7 @@ def train(model,
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
                 labels = data["label"].to(device)
-                if model_name in ["deeplabv3", "resnet50_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                if model_name in ["deeplabv3", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     masks = data["mask"].to(device)
                     mask_exist = data["mask_exist"].to(device)
                     # print(masks, torch.min(masks), torch.max(masks))
