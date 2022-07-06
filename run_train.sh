@@ -122,3 +122,9 @@ python train.py --model_name=$model_name \
 # resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=False class=2 BUSI (load pre-trained saliency)
 
 # exp53-64, repeat exp41-52 on MAYO_bbox
+
+# exp65-66, size = {256, 512}
+# resnet50-rasaee mask=True BUSI 
+
+# exp67-68, size = {256, 512}
+# resnet50-rasaee mask=True MAYO_bbox 

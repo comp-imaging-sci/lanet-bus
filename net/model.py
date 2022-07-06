@@ -229,7 +229,7 @@ class ResNetMask(nn.Module):
         mask = self.mask_module(x)
         if self.attention:
             # x = x + self.attention_weight * mask * x
-            x = x * mask
+            x = x + x * mask
         x = self.c(x)
         return [x, mask]
 
