@@ -186,9 +186,13 @@ class RasaeeUpsampleBlock(nn.Module):
 
 class RasaeeMaskHead(nn.Module):
     """https://arxiv.org/abs/2108.04345"""
-    def __init__(self, map_size=448):
+    def __init__(self, resnet_name, map_size=448):
         super(RasaeeMaskHead, self).__init__()
-        self.block1 = RasaeeUpsampleBlock(2048, 256, 16)
+        if resnet_name == "resnet50":
+            init_c = 2048
+        elif resnet_name == "resnet18":
+            init_c = 512
+        self.block1 = RasaeeUpsampleBlock(init_c, 256, 16)
         self.block2 = RasaeeUpsampleBlock(256, 64, 112)
         self.block3 = RasaeeUpsampleBlock(64, 1, map_size)
         self.sig = nn.Sigmoid()
@@ -217,11 +221,12 @@ class ResNetMask(nn.Module):
         self.attention = model_info[1] == "attention"
         self.attention_weight = attention_weight
         self.net = LogitResnet(resnet_name, num_classes, return_logit=False, return_feature=True, use_pretrained=use_pretrained)
-        if model_name == "resnet50_attention_mask":
+        if model_name in ["resnet50_attention_mask"]:
             # self.mask_module = MaskAttentionNet(reduction=reduction, attention_weight=attention_weight)
             self.mask_module = MaskAttentionNet2(num_blocks)
-        elif model_name == "resnet50_rasaee_mask":
-            self.mask_module = RasaeeMaskHead(map_size)
+        elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
+            resnet_name = model_name.split("_")[0]
+            self.mask_module = RasaeeMaskHead(resnet_name, map_size)
         self.c = ClassificationHead(2048, num_classes)
 
     def forward(self, x):
@@ -352,7 +357,7 @@ def get_model(model_name,
         model = DeepLabV3(num_classes=num_classes, pretrained=use_pretrained)
     elif model_name == "resnet50_attention_mask":
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, reduction=reduction, attention_weight=attention_weight, num_blocks=num_blocks)
-    elif model_name == "resnet50_rasaee_mask":
+    elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size)
     elif model_name in ["resnet18_cbam_mask", "resnet18_cbam", "resnet50_cbam_mask", "resnet50_cbam"]:
         model = ResNetCbam(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size,
