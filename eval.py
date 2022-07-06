@@ -127,7 +127,7 @@ class Eval():
                 prob = torch.nn.Sigmoid()(outputs)
                 mask_pred = (prob>0.5).type(torch.int)
         else:
-            if self.model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+            if self.model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                 # interpolate mask to original size
                 prob = torch.nn.functional.interpolate(outputs[1], size=(self.image_size, self.image_size), mode="bilinear", align_corners=True)
                 mask_pred = torch.where(prob>mask_thres, 1, 0)
@@ -175,7 +175,7 @@ class Eval():
                   "train": train_file, 
                   "test": test_file, 
                   "dataset": self.dataset,
-                  "mask": self.model_name in ["deeplabv3", "resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
+                  "mask": self.model_name in ["deeplabv3", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
                   "dilute_mask": 0,
                  }
         image_datasets, data_sizes = prepare_data(config)

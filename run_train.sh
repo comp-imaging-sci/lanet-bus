@@ -134,3 +134,12 @@ python train.py --model_name=$model_name \
 
 # exp71-72, size = {256, 512}
 # resnet18-rasaee mask=True MAYO_bbox 
+
+# partial label exp
+# exp73-74, size = {256, 512}
+# resnet50 mask=False class=2 MAYO
+
+# exp75-76, size = {256, 512}
+# resnet18 mask=False class=2 MAYO 
+
+# vs exp 11-12, 15-16
