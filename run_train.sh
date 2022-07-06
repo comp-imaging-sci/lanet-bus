@@ -1,11 +1,11 @@
 #!/bin/bash
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
 model_name="resnet18_rasaee_mask"
-image_size=512
+image_size=256
 #map_size=$(expr $image_size / 32)
 map_size=$image_size
 datatype="BUSI"
-exp="exp68"
+exp="exp67"
 num_classes=2
 use_mask=True
 channel_att=True
@@ -128,4 +128,10 @@ python train.py --model_name=$model_name \
 # resnet50-rasaee mask=True BUSI 
 
 # exp67-68, size = {256, 512}
+# resnet18-rasaee mask=True BUSI 
+
+# exp69-70, size = {256, 512}
 # resnet50-rasaee mask=True MAYO_bbox 
+
+# exp71-72, size = {256, 512}
+# resnet18-rasaee mask=True MAYO_bbox 
