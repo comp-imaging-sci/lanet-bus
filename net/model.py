@@ -221,13 +221,17 @@ class ResNetMask(nn.Module):
         self.attention = model_info[1] == "attention"
         self.attention_weight = attention_weight
         self.net = LogitResnet(resnet_name, num_classes, return_logit=False, return_feature=True, use_pretrained=use_pretrained)
+        resnet_name = model_name.split("_")[0]
         if model_name in ["resnet50_attention_mask"]:
             # self.mask_module = MaskAttentionNet(reduction=reduction, attention_weight=attention_weight)
             self.mask_module = MaskAttentionNet2(num_blocks)
         elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
-            resnet_name = model_name.split("_")[0]
             self.mask_module = RasaeeMaskHead(resnet_name, map_size)
-        self.c = ClassificationHead(2048, num_classes)
+        if resnet_name == "resnet50":
+            cls_c = 2048
+        elif resnet_name == "resnet18":
+            cls_c = 512
+        self.c = ClassificationHead(cls_c, num_classes)
 
     def forward(self, x):
         _, x = self.net(x)
