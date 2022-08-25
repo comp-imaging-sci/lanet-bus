@@ -51,6 +51,8 @@ class Eval():
                  multi_gpu=False,
                  use_mask=True,
                  channel_att=False,
+                 spatial_att=False,
+                 final_att=False, 
                  reduction_ratio=16, 
                  attention_num_conv=3, 
                  attention_kernel_size=3,
@@ -65,6 +67,8 @@ class Eval():
         self.multi_gpu = multi_gpu
         self.use_mask = use_mask
         self.channel_att = channel_att
+        self.spatial_att = spatial_att
+        self.final_att = final_att
         self.reduction_ratio = reduction_ratio
         self.attention_num_conv = attention_num_conv
         self.attention_kernel_size = attention_kernel_size
@@ -74,6 +78,8 @@ class Eval():
     def load_model(self):
         if self.use_mask:
             cbam_param = dict(channel_att=self.channel_att, 
+                          spatial_att=self.spatial_att,
+                          final_att=self.final_att,
                           reduction_ratio=self.reduction_ratio, 
                           attention_num_conv=self.attention_num_conv, 
                           attention_kernel_size=self.attention_kernel_size,
@@ -129,18 +135,27 @@ class Eval():
     
 if __name__ == "__main__":
     # fire.Fire(Eval)
-    model_weights = "test/res50_mask_256_busi.pt"
-    model_name = "resnet50_cbam_mask"
+    model_weights = "test/res18_la_mayo.pt"
+    model_weights = "test/res18_mayo.pt"
+    model_name = "resnet18_cbam_mask"
+    model_name = "resnet18"
     img_size = 256
     num_classes = 2
-    dataset = "MAYO"
+    dataset = "BUSI"
     map_size = img_size // 32
     use_mask = True
+    use_mask = False
     channel_att = True
+    spatial_att = True
+    final_att = True
     mask_thres = 0.56
     multi_gpu = False
     image_path = "test/IM00033 annotated.png"
-    saliency_file = "test/test_saliency_2.png"
+    image_path = "test/mayo_data/081_IM00027 annotated.png"
+    # saliency_file = "test/test_saliency_2.png"
+    # image_path = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/malignant/malignant (11).png"
+    saliency_file = "test/res18_la_sa_mayo_m.png"
+    saliency_file = "test/res18_sa_mayo_m.png"
     evaluator = Eval(model_name=model_name, 
                  num_classes=num_classes, 
                  model_weights=model_weights,  
@@ -150,6 +165,8 @@ if __name__ == "__main__":
                  multi_gpu=multi_gpu,
                  use_mask=use_mask,
                  channel_att=channel_att,
+                 spatial_att=spatial_att,
+                 final_att=final_att,
                  reduction_ratio=16, 
                  attention_num_conv=3, 
                  attention_kernel_size=3,
