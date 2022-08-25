@@ -3,14 +3,16 @@ img_size=512
 use_mask=True
 channel_att=True
 spatial_att=True
-final_att=False
-dataset="MAYO_bbox"
+final_att=True
+dataset="MAYO"
 model_name="resnet50_cbam_mask"
 map_size=$(expr $img_size / 32)
-exp="exp62"
-#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/best_model.pt" )
+#map_size=$img_size
+exp="exp12"
+declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/best_model.pt" )
+#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
 #declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_86.pt" )
-declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_96.pt" )
+#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_96.pt" )
 for model in ${StringArray[@]};
 do
     full_path="${dataset}_train/$model"
@@ -43,9 +45,8 @@ do
                --attention_num_conv=3 \
                --attention_kernel_size=3 \
                --map_size=$map_size \
-               accuracy
-    #            #iou \
-    #            #--mask_thres=0.2
+                iou \
+                --mask_thres=0.47
     #            #accuracy \
     #            #--binary_class=True 
                #--test_file=/shared/anastasio5/COVID19/data/originals/orig_train_sample.txt

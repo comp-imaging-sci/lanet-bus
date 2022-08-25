@@ -20,7 +20,7 @@ Universe = vanilla
 getenv = true
 request_gpus = 1 
 
-#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet18_624_001-118.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp62.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp62.err
+#Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/MAYO_resnet18_12_iou_iou4_001-28_iou1.log
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp12_iou.out
+Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/eval/exp12_iou.err
 Queue
