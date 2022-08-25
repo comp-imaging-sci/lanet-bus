@@ -13,6 +13,8 @@ import pandas as pd
 from pytorch_grad_cam import GradCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import cv2
+from sklearn.metrics import roc_auc_score, auc, roc_curve
+
 
 BUSI_LABELS = ["normal", "malignant", "benign"]
 BUSI_LABELS_BINARY = ["malignant", "benign"]
@@ -27,6 +29,29 @@ def mean_confidence_interval(x, confidence=0.95):
     ci = stats.t.ppf((1 + confidence) / 2., n-1) * se
     # ci = 1.96 * se  # assume gaussian distribution
     return m, ci
+
+
+def calculate_auc(pred, label, num_classes=3):
+    fpr, tpr, roc_auc = {}, {}, {}
+    # label = label_binarize(label, classes=list(range(num_classes)))
+    label = np.eye(num_classes)[label]
+    if num_classes > 1:
+        for i in range(num_classes):
+            fpr[i], tpr[i], _ = roc_curve(label[:, i], pred[:,i])
+            roc_auc[i] = auc(fpr[i], tpr[i])
+    else:
+        fpr[0], tpr[0], _ = roc_curve(label, pred)
+        roc_auc[0] = auc(fpr[0], tpr[0])
+    all_fpr = np.unique(np.concatenate([fpr[i] for i in range(num_classes)]))
+    mean_tpr = np.zeros_like(all_fpr)
+    for i in range(num_classes):    
+        mean_tpr += np.interp(all_fpr, fpr[i], tpr[i])
+    mean_tpr = mean_tpr / num_classes
+    tpr["macro"] = mean_tpr
+    fpr["macro"] = all_fpr
+    macro_auc = auc(all_fpr, mean_tpr)
+    roc_auc["macro_auc"] = macro_auc
+    return roc_auc, tpr, fpr
 
 
 class Eval():
@@ -145,7 +170,7 @@ class Eval():
         #    # mask = mask / np.max(mask)
         #    show_mask_on_image(img, mask, mask_save_file, use_rgb=False)
         
-    def accuracy(self, test_file=None, binary_class=True):
+    def accuracy(self, test_file=None, binary_class=True, return_auc=True):
         if test_file is None:
             if self.dataset == "BUSI":
                 train_file = "data/busi_train_binary.txt"
@@ -190,6 +215,7 @@ class Eval():
             result_matrics = np.zeros((2, 2)) 
         else:
             result_matrics = np.zeros((2, 2))
+        pred_list, label_list = [], []
         with torch.no_grad():
             for data in dataloader:
                 inputs = data["image"].to(self.device)
@@ -197,9 +223,15 @@ class Eval():
                 tag = labels.cpu().numpy()[0]
                 outputs = self.model(inputs)
                 _, pred = torch.max(outputs[0], 1)
+                score = outputs[0].numpy()
                 # score = outputs[0].numpy()
                 pred = int(pred.item())
                 result_matrics[tag][pred] += 1
+                if return_auc:
+                    if len(pred_list) == 0:
+                        pred_list = score
+                    else:
+                        pred_list = np.concatenate([pred_list, score], axis=0)
             # precision: TP / (TP + FP)
             print("result matrics: ", result_matrics)
             # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
@@ -229,6 +261,11 @@ class Eval():
         print('Sensitivity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_sens[0], res_sens[1], np.mean(res_sens)))
         print('Specificity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_speci[0],res_speci[1], np.mean(res_speci)))
         print('F1 score: w/o: {0:.3f}, with: {1:.3f}, avg{2:.3f}'.format(f1_score[0],f1_score[1], np.mean(f1_score)))
+        if return_auc:
+            auc_v, fpr, tpr = calculate_auc(pred_list, label_list, num_classes=self.num_classes)
+            print("AUC: ", auc_v)
+            print("FPR: ", fpr)
+            print("TRP", tpr)
     
     def iou(self, test_file=None, mask_thres=0.2):
         if test_file is None:
