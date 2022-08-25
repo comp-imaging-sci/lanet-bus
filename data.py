@@ -66,23 +66,29 @@ class BUSI_dataset(Dataset):
             img = self._transform(img)
         # load mask
         mask = []
+        mask_exist = 0
         if self._mask:
-            mask = get_image_mask(image_name, dataset="BUSI")
-            mask = dilute_mask(mask, dilute_distance=self._mask_dilute)
-            # assign class label
-            mask = Image.fromarray(mask)
-            if self._mask_transform:
-                random.seed(seed)
-                torch.manual_seed(seed)
-                # torch.set_rng_state(state)
-                mask = self._mask_transform(mask)
-                mask = mask.type(torch.float)
-                # mask = mask * label_id  # normal case is identical to backaground
+            if self._img_bbox[idx] != "0:0:0:0":
+                mask = get_image_mask(image_name, dataset="BUSI")
+                mask = dilute_mask(mask, dilute_distance=self._mask_dilute)
+                # assign class label
+                mask = Image.fromarray(mask)
+                mask_exist = 1
+                if self._mask_transform:
+                    random.seed(seed)
+                    torch.manual_seed(seed)
+                    # torch.set_rng_state(state)
+                    mask = self._mask_transform(mask)
+                    mask = mask.type(torch.float)
+                    # mask = mask * label_id  # normal case is identical to backaground
+            else:
+                mask = torch.zeros_like(img, dtype=torch.float)
+                mask_exist = 0
         # dummy input for testing 
         # img = torch.rand(3, 256,256)
         # label_id = 1
         # mask = torch.rand(1, 256, 256)
-        return {"image": img, "label": label_id, "mask": mask, "mask_exist": 1}
+        return {"image": img, "label": label_id, "mask": mask, "mask_exist": mask_exist}
 
 
 # input image width/height ratio

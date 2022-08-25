@@ -263,6 +263,8 @@ class Eval():
         result_matrics = []
         with torch.no_grad():
             for data in dataloader:
+                if data["mask_exist"] == 0:
+                    continue
                 img = data["image"].to(self.device)
                 outputs = self.model(img)
                 mask = data["mask"].to(self.device)
