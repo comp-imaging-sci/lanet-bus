@@ -172,7 +172,8 @@ def run(model_name,
         except:
             model = load_weights(model, pretrained_weights, multi_gpu=True, device=device, num_classes=num_classes)
     if dataset == "BUSI":
-        train_file = "data/busi_train_binary.txt"
+        #train_file = "data/busi_train_binary.txt"
+        train_file = "data/busi_train_binary_bbox_0.75.txt"
         test_file = "data/busi_test_binary.txt"
     elif dataset == "MAYO":
         train_file = "data/mayo_train_bbox.txt"

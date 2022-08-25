@@ -1,17 +1,17 @@
 #!/bin/bash
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
-model_name="resnet50_cbam_mask"
-image_size=256
+model_name="resnet18_cbam_mask"
+image_size=512
 map_size=$(expr $image_size / 32)
 #map_size=$image_size
-datatype="MAYO"
-exp="exp11"
+datatype="BUSI"
+exp="exp88"
 num_classes=2
 use_mask=True
 channel_att=True
 spatial_att=True
 final_att=True
-save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
+save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}-ratio=0.75"
 
 if [ ! -d $save_path ]; then
     mkdir $save_path
@@ -19,14 +19,14 @@ fi
 
 ref_path="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train"
 #backbone_weight="${ref_path}/exp5-resnet50-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt" #  res50,256
-backbone_weight="${ref_path}/exp6-resnet50-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res50,512
+#backbone_weight="${ref_path}/exp6-resnet50-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res50,512
 #backbone_weight="${ref_path}/exp7-resnet18-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt" # res18,256
-#backbone_weight="${ref_path}/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res18,512
+backbone_weight="${ref_path}/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res18,512
 
 #saliency_weight="${ref_path}/exp17-resnet50_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt"  # res50,256,T,T,T
-saliency_weight="${ref_path}/exp18-resnet50_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res50,512,T,T,T
+#saliency_weight="${ref_path}/exp18-resnet50_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res50,512,T,T,T
 #saliency_weight="${ref_path}/exp19-resnet18_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt" # res18,256,T,T,T
-#saliency_weight="${ref_path}/exp20-resnet18_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res18,512,T,T,T
+saliency_weight="${ref_path}/exp20-resnet18_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res18,512,T,T,T
 #saliency_weight="${ref_path}/exp29-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res50,256,FTT
 #saliency_weight="${ref_path}/exp30-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2/best_model.pt" # res50,512,FTT
 #saliency_weight="${ref_path}/exp31-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res18,256,FTT
