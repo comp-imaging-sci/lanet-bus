@@ -144,3 +144,21 @@ python train.py --model_name=$model_name \
 # resnet18 mask=False class=2 MAYO 
 
 # vs exp 11-12, 15-16
+
+# exp 77-78, size= {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 BUSI_0.25 
+
+# exp 79-80, size= {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 BUSI_0.25 
+
+# exp 81-82, size= {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 BUSI_0.5 
+
+# exp 83-84, size= {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 BUSI_0.5 
+
+# exp85-86, size= {256, 512}
+# resnet50-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 BUSI_0.75 
+
+# exp 87-88, size= {256, 512}
+# resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 BUSI_0.75 
