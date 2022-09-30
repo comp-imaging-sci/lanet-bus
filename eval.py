@@ -223,7 +223,7 @@ class Eval():
                 tag = labels.cpu().numpy()[0]
                 outputs = self.model(inputs)
                 _, pred = torch.max(outputs[0], 1)
-                score = outputs[0].numpy()
+                score = outputs[0].cpu().numpy()
                 # score = outputs[0].numpy()
                 pred = int(pred.item())
                 result_matrics[tag][pred] += 1
@@ -232,6 +232,7 @@ class Eval():
                         pred_list = score
                     else:
                         pred_list = np.concatenate([pred_list, score], axis=0)
+                    label_list.append(tag)
             # precision: TP / (TP + FP)
             print("result matrics: ", result_matrics)
             # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
@@ -262,7 +263,7 @@ class Eval():
         print('Specificity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_speci[0],res_speci[1], np.mean(res_speci)))
         print('F1 score: w/o: {0:.3f}, with: {1:.3f}, avg{2:.3f}'.format(f1_score[0],f1_score[1], np.mean(f1_score)))
         if return_auc:
-            auc_v, fpr, tpr = calculate_auc(pred_list, label_list, num_classes=self.num_classes)
+            auc_v, tpr, fpr = calculate_auc(pred_list, label_list, num_classes=self.num_classes)
             print("AUC: ", auc_v)
             print("FPR: ", fpr)
             print("TRP", tpr)
@@ -391,3 +392,27 @@ if __name__ == "__main__":
     # # # evaluator.image2mask(seg_image_file, mask_save_file, mask_thres=mask_thres)
     # # evaluator.iou(test_file=seg_image_file, mask_thres=0.35)
     # evaluator.saliency(image_path, saliency_file=saliency_file)
+    # import matplotlib.pyplot as plt
+
+    # TPR = np.array([])
+
+    # FPR = np.array([])
+    
+    # auc = auc(FPR, TPR)
+    # plt.figure()
+    # lw = 2
+    # plt.plot(
+    #     FPR,
+    #     TPR,
+    #     color="darkorange",
+    #     lw=lw,
+    #     label="ROC curve (area = %0.2f)" % auc,
+    # )
+    # plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+    # plt.xlim([0.0, 1.0])
+    # plt.ylim([0.0, 1.05])
+    # plt.xlabel("False Positive Rate")
+    # plt.ylabel("True Positive Rate")
+    # plt.title("Receiver operating characteristic example")
+    # plt.legend(loc="lower right")
+    # plt.show()

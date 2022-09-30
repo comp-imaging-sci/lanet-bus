@@ -30,7 +30,10 @@ NET_COLOR_PALETTE = {
     "ResNet18+LA-Net (no MAM)":"#F55F20",
     }
 
-
+PART_DATA_PALETTE = {
+    "ResNet50+LA-Net": "#82B300", 
+    "ResNet18+LA-Net": "#FBB124",
+}
 
 def flip_legned(items, ncol):
     return itertools.chain(*[items[i::ncol] for i in range(ncol)])
@@ -116,13 +119,21 @@ def draw_method_effect(image_name, size, dataset="covidx"):
     elif dataset in ["ablation_mayo_bbox", "ablation_busi"]:
         metrics = ["Precision", "Sensitivity", "Specificity", "F1-Score"]
         nets = ["ResNet18", "ResNet18+LA-Net (no CAM)", "ResNet18+LA-Net (no SAM)", "ResNet18+LA-Net (no MAM)", "ResNet18+LA-Net", "ResNet50", "ResNet50+LA-Net (no CAM)", "ResNet50+LA-Net (no SAM)", "ResNet50+LA-Net (no MAM)", "ResNet50+LA-Net"]
-        pairs18 =[("ResNet18", "ResNet18+LA-Net (no CAM)"), 
-                ("ResNet18", "ResNet18+LA-Net (no SAM)"), 
-                ("ResNet18", "ResNet18+LA-Net (no MAM)"),
+        # pairs18 =[("ResNet18", "ResNet18+LA-Net (no CAM)"), 
+        #         ("ResNet18", "ResNet18+LA-Net (no SAM)"), 
+        #         ("ResNet18", "ResNet18+LA-Net (no MAM)"),
+        #         ("ResNet18", "ResNet18+LA-Net")]
+        # pairs50 =[("ResNet50", "ResNet50+LA-Net (no CAM)"), 
+        #         ("ResNet50", "ResNet50+LA-Net (no SAM)"), 
+        #         ("ResNet50", "ResNet50+LA-Net (no MAM)"),
+        #         ("ResNet50", "ResNet50+LA-Net")]
+        pairs18 =[("ResNet18+LA-Net (no CAM)", "ResNet18+LA-Net"), 
+                ("ResNet18+LA-Net (no SAM)", "ResNet18+LA-Net"), 
+                ("ResNet18+LA-Net (no MAM)", "ResNet18+LA-Net"),
                 ("ResNet18", "ResNet18+LA-Net")]
-        pairs50 =[("ResNet50", "ResNet50+LA-Net (no CAM)"), 
-                ("ResNet50", "ResNet50+LA-Net (no SAM)"), 
-                ("ResNet50", "ResNet50+LA-Net (no MAM)"),
+        pairs50 =[("ResNet50+LA-Net (no CAM)", "ResNet50+LA-Net"), 
+                ("ResNet50+LA-Net (no SAM)", "ResNet50+LA-Net"), 
+                ("ResNet50+LA-Net (no MAM)", "ResNet50+LA-Net"),
                 ("ResNet50", "ResNet50+LA-Net")]
         pairs = pairs18 + pairs50
         bar_width = 1.2 # bar width
@@ -243,22 +254,115 @@ def draw_method_effect(image_name, size, dataset="covidx"):
     plt.savefig(image_name)
 
 
+def draw_confidence_band(image_name, size, type):
+    if type == "part_data":
+        csv_file = "part_data_busi.csv"
+        metrics = ["Precision", "Sensitivity", "Specificity", "F1-Score"]
+        nets = ["ResNet18", "ResNet18+LA-Net (0.25)", "ResNet18+LA-Net (0.5)", "ResNet18+LA-Net (0.75)", "ResNet18+LA-Net (1)", "ResNet50", "ResNet50+LA-Net (0.25)", "ResNet50+LA-Net (0.5)", "ResNet50+LA-Net (0.75)", "ResNet50+LA-Net (1)"]
+        pairs18 =[("ResNet18", "ResNet18+LA-Net (0.25)"), 
+                ("ResNet18", "ResNet18+LA-Net (0.5)"), 
+                ("ResNet18", "ResNet18+LA-Net (0.75)"),
+                ("ResNet18", "ResNet18+LA-Net (1)")]
+        pairs50 =[("ResNet50", "ResNet50+LA-Net (0.25)"), 
+                ("ResNet50", "ResNet50+LA-Net (0.5)"), 
+                ("ResNet50", "ResNet50+LA-Net (0.75)"),
+                ("ResNet50", "ResNet50+LA-Net (1)")]
+        pairs = pairs18 + pairs50
+        draw_nets = ["ResNet18+LA-Net", "ResNet50+LA-Net"]
+        targets = ["0", "0.25", "0.5", "0.75", "1"]
+        markers = ["o", "v"] 
+        color_palette = PART_DATA_PALETTE
+        fig, ax = plt.subplots(1, 4)
+        fig.set_size_inches(25, 7) 
+
+        # fig.set_size_inches(22, 6)   # no legend
+    elif type == "part_data_iou":
+        csv_file = "part_data_iou_busi.csv"
+        metrics = ["JSI"]
+        nets = ["ResNet18+LA-Net (0.25)", "ResNet18+LA-Net (0.5)", "ResNet18+LA-Net (0.75)", "ResNet18+LA-Net (1)", "ResNet50+LA-Net (0.25)", "ResNet50+LA-Net (0.5)", "ResNet50+LA-Net (0.75)", "ResNet50+LA-Net (1)"]
+        pairs18 =[("ResNet18", "ResNet18+LA-Net (0.25)"), 
+                ("ResNet18", "ResNet18+LA-Net (0.5)"), 
+                ("ResNet18", "ResNet18+LA-Net (0.75)"),
+                ("ResNet18", "ResNet18+LA-Net (1)")]
+        pairs50 =[("ResNet50", "ResNet50+LA-Net (0.25)"), 
+                ("ResNet50", "ResNet50+LA-Net (0.5)"), 
+                ("ResNet50", "ResNet50+LA-Net (0.75)"),
+                ("ResNet50", "ResNet50+LA-Net (1)")]
+        pairs = pairs18 + pairs50
+        draw_nets = ["ResNet18+LA-Net", "ResNet50+LA-Net"]
+        targets = ["0.25", "0.5", "0.75", "1"]
+        markers = ["o", "v"] 
+        color_palette = PART_DATA_PALETTE
+        fig, ax = plt.subplots(1, 1)
+        fig.set_size_inches(7, 8) 
+        ax = [ax]
+    df = pd.read_csv(csv_file, sep=",")
+    df = df[df["Size"] == size]
+    # df[metrics[0]] = df[metrics[0]] * 100
+
+    # draw bar
+    for i, metric in enumerate(metrics):
+        means, lows, highs, errs = [], [], [], []
+        
+        for j, net in enumerate(nets):
+            m, err = get_confidence_interval(df, metric, net)
+            means.append(m)
+            lows.append(m-err)
+            highs.append(m+err)
+            errs.append(err)
+        for k, net in enumerate(draw_nets):
+            interval = len(nets) // 2
+            xs = [str(s) for s in targets]
+            # ax[i].plot(xs, means[interval*k:interval*(k+1)], "--{}".format(markers[k]), markersize=10, linewidth=2, label=net, color=color_palette[net]) 
+            # draw confidence bands
+            # ax[i].fill_between(xs, lows[interval*k:interval*(k+1)], highs[interval*k:interval*(k+1)], alpha=0.2, color=color_palette[net])
+            ax[i].errorbar(xs, means[interval*k:interval*(k+1)], yerr=errs[interval*k:interval*(k+1)], fmt="--{}".format(markers[k]), markersize=10, linewidth=2, label=net, color=color_palette[net], capsize=7)
+    # set subplot title
+    for i, metric in enumerate(metrics):
+        ax[i].set_title(metric)
+
+    fig_idx = list(range(len(metrics)))
+    for i in fig_idx:
+        if type == "part_data":
+            ax[i].set_ylim([0.85, 1.01])
+            ax[i].yaxis.set_ticks(np.arange(0.85, 1.01, 0.05))
+        elif type == "part_data_iou":
+            if size == 256:
+                ax[i].set_ylim([0.36, 0.45])
+                ax[i].yaxis.set_ticks(np.arange(0.36, 0.45, 0.02))
+            elif size == 512:
+                ax[i].set_ylim([0.45, 0.61])
+                ax[i].yaxis.set_ticks(np.arange(0.45, 0.61, 0.05))
+        ax[i].set_xticks(xs)
+    handles, labels = ax[0].get_legend_handles_labels()
+    if type == "part_data":
+        ax[1].legend(handles, labels, bbox_to_anchor=(0.2, -0.7, 2, 0.5), loc="upper left", ncol=5, mode="expand", borderaxespad=0, fontsize=25) 
+    if type == "part_data_iou":
+        ax[0].legend(handles, labels, bbox_to_anchor=(0.0, -0.7, 1.0, 0.5), loc="upper left", ncol=1, mode="expand", borderaxespad=0, fontsize=25) 
+    plt.tight_layout()
+    plt.savefig(image_name)
+
+
 if __name__ == "__main__":
     # draw method 
     size = 256
-    img_name = "method_effect_mayo_{}_no_sig.png".format(size)
-    draw_method_effect(img_name, size=size, dataset="MAYO")
+    # img_name = "method_effect_mayo_{}_no_sig.png".format(size)
+    # draw_method_effect(img_name, size=size, dataset="MAYO")
 
-    
     # ablation
-    # img_name = "ablation_mayo_bbox_iou_{}.png".format(size) 
-    # draw_method_effect(img_name, size=size, dataset="ablation_mayo_bbox_iou")  
+    img_name = "ablation_busi_{}.png".format(size) 
+    draw_method_effect(img_name, size=size, dataset="ablation_busi")  
+
+    # part data busi
+    # img_name = "part_data_busi_{}.png".format(size)
+    # draw_confidence_band(img_name, size, type="part_data")
 
     # pv = st.ttest_ind(a, b, alternative="less")
     # print(pv)
-    # sample = np.array([0.545,	0.532,	0.548])
+    # sample = np.array([0.563,	0.566,	0.5 ])
     # meanv = np.mean(sample)
     # std = st.sem(sample)
     # ci = st.t.interval(alpha=0.95, df=len(sample)-1, loc=meanv, scale=std)
     # print(meanv, (ci[1] - meanv)) # convert to %
+
     

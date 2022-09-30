@@ -10,6 +10,8 @@ use_mask=True
 channel_att=False
 spatial_att=True
 final_att=True
+pseudo_conf=0.8
+pseudo_mask_weight=0.1
 save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
 
 if [ ! -d $save_path ]; then
@@ -62,7 +64,9 @@ python train.py --model_name=$model_name \
                 --attention_num_conv=3 \
                 --backbone_weights="$backbone_weight"\
                 --saliency_weights="$saliency_weight"\
-                --mask_weight=1
+                --mask_weight=1\
+                --pseudo_conf=$pseudo_conf \
+                --pseudo_mask_weight=$pseudo_mask_weight
                 #--mask_annotate_file="data/mayo_patient_info.csv" \
                 #--pretrained_weights="/shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_mask_448/best_model.pt" \
 

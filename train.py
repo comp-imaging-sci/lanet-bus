@@ -26,7 +26,9 @@ def train(model,
           num_epochs, 
           num_classes,
           device="cpu",
-          mask_weight=None):
+          mask_weight=None,
+          pseudo_conf=0.8,
+          pseudo_mask_weight=0.0):
     """Train Classifier"""
     # best_model_w = copy.deepcopy(model.state_dict())
     best_acc = 0
@@ -42,7 +44,7 @@ def train(model,
     if model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
         # mask_criterion = nn.L1Loss()
         # mask_criterion = nn.BCEWithLogitsLoss().to(device)
-        mask_criterion = nn.BCELoss().to(device)
+        mask_criterion = nn.BCELoss(reduction='none').to(device)
         if mask_weight is None:
             mask_weight = 1.0 
     for epoch in range(num_epochs):
@@ -86,7 +88,8 @@ def train(model,
                         # resize masks to final feature size
                         featmap_size = outputs[1].shape[-1]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
-                        mask_loss = mask_criterion(nn.Sigmoid()(outputs[1]), masks_inter)
+                        mask_loss_vec = mask_criterion(nn.Sigmoid()(outputs[1]), masks_inter)
+                        mask_loss = torch.mean(mask_loss_vec)
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1) 
                     elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", ]:
@@ -95,8 +98,17 @@ def train(model,
                         batch_size = outputs[0].shape[0]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
                         mask_exist = mask_exist.view([batch_size, 1, 1, 1])
-                        mask_pred = outputs[1] * mask_exist 
-                        mask_loss = mask_criterion(mask_pred, masks_inter)
+                        # set loss weight for pseudo labeling
+                        batch_pseudo_w = torch.where(mask_exist==1, 1.0, pseudo_mask_weight)
+                        # mask_pred = outputs[1] * mask_exist 
+                        mask_pred = outputs[1]
+                        # obtain pseudo labeling 
+                        batch_pseudo_mask = torch.where(mask_pred>=pseudo_conf, 1, 0)
+                        # combine pseudo mask and gt mask
+                        batch_mask = masks_inter + batch_pseudo_mask * (1-mask_exist)
+                        mask_loss_vec = mask_criterion(mask_pred, batch_mask)
+                        # weighted loss
+                        mask_loss = torch.mean(mask_loss_vec * batch_pseudo_w) 
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
                     else:
@@ -186,7 +198,9 @@ def run(model_name,
         map_size=14,
         reduction_ratio=16, 
         attention_kernel_size=3, 
-        attention_num_conv=3):
+        attention_num_conv=3,
+        pseudo_conf=0.8,
+        pseudo_mask_weight=0.1):
     # get model 
     if use_mask:
         cbam_param = dict(channel_att=channel_att, 
@@ -283,7 +297,9 @@ def run(model_name,
                            num_epochs=num_epochs, 
                            num_classes=num_classes,
                            device=device,
-                           mask_weight=mask_weight)
+                           mask_weight=mask_weight,
+                           pseudo_conf=pseudo_conf, 
+                           pseudo_mask_weight=pseudo_mask_weight)
     # torch.save(model_ft.state_dict(), model_save_path+'/best_model.pt')
     print("Val acc history: ", hist)
 
