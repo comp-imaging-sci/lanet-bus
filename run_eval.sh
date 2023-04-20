@@ -1,18 +1,19 @@
 #!/bin/bash
-img_size=512
+img_size=256
 use_mask=True
 channel_att=True
 spatial_att=True
-final_att=False
+final_att=True
 dataset="MAYO_bbox"
-model_name="resnet18_rasaee_mask"
+model_name="deeplabv3"
 map_size=$(expr $img_size / 32)
 #map_size=$img_size
-exp="exp72"
+exp="exp138"
 declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/best_model.pt" )
-#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
-#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_86.pt" )
-#declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_96.pt" )
+declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_46.pt" )
+# declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2_0.25/w_epoch_41.pt" )
+# declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
+# declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/w_epoch_96.pt" )
 for model in ${StringArray[@]};
 do
     full_path="${dataset}_train/$model"
@@ -45,10 +46,10 @@ do
                --attention_num_conv=3 \
                --attention_kernel_size=3 \
                --map_size=$map_size \
-               accuracy \
-               #iou \
-               #--mask_thres=0.5
-               #--binary_class=True 
+                iou \
+               --mask_thres=0.5 \
+            #     accuracy \
+            #    --binary_class=True \
                #--test_file=/shared/anastasio5/COVID19/data/originals/orig_train_sample.txt
     echo "Model processed: $model"
     echo "======================="

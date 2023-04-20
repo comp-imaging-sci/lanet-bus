@@ -1,53 +1,56 @@
 #!/bin/bash
 # matlab -nodisplay -nosplash -nodesktop -r "run('/home/xiaohui8/Desktop/tube_samples_dataset/GoogLeNet/googlenet_pretrain.m');exit;"|tail -n +11
-model_name="resnet18_cbam_mask"
-image_size=512
+model_name="deeplabv3"
+image_size=256
 map_size=$(expr $image_size / 32)
 #map_size=$image_size
 datatype="BUSI"
-exp="exp88"
+exp="exp137"
 num_classes=2
 use_mask=True
 channel_att=True
 spatial_att=True
 final_att=True
-save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}-ratio=0.75"
+pseudo_conf=0.8
+pseudo_mask_weight=0.1
+save_path="${datatype}_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
+# save_path="BUSI_train/${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${image_size}-cls=${num_classes}"
 
 if [ ! -d $save_path ]; then
     mkdir $save_path
 fi 
 
 ref_path="/shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train"
-#backbone_weight="${ref_path}/exp5-resnet50-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt" #  res50,256
-#backbone_weight="${ref_path}/exp6-resnet50-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res50,512
-#backbone_weight="${ref_path}/exp7-resnet18-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt" # res18,256
-backbone_weight="${ref_path}/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res18,512
+backbone_weight="${ref_path}/exp5-resnet50-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt" # res50,256
+# backbone_weight="${ref_path}/exp6-resnet50-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res50,512
+# backbone_weight="${ref_path}/exp7-resnet18-mask=False-channel_att=False-size=256-cls=2/best_model_1.pt" # res18,256
+# backbone_weight="${ref_path}/exp8-resnet18-mask=False-channel_att=False-size=512-cls=2/best_model_1.pt" # res18,512
 
-#saliency_weight="${ref_path}/exp17-resnet50_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt"  # res50,256,T,T,T
-#saliency_weight="${ref_path}/exp18-resnet50_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res50,512,T,T,T
-#saliency_weight="${ref_path}/exp19-resnet18_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt" # res18,256,T,T,T
-saliency_weight="${ref_path}/exp20-resnet18_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res18,512,T,T,T
-#saliency_weight="${ref_path}/exp29-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res50,256,FTT
-#saliency_weight="${ref_path}/exp30-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2/best_model.pt" # res50,512,FTT
-#saliency_weight="${ref_path}/exp31-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res18,256,FTT
-#saliency_weight="${ref_path}/exp32-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2/best_model.pt" # res18,512,FTT
-#saliency_weight="${ref_path}/exp33-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2/best_model.pt" # res50,256,TFT
-#saliency_weight="${ref_path}/exp34-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2/best_model.pt" # res50,512,TFT
-#saliency_weight="${ref_path}/exp35-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2/best_model.pt" # res18,256,TFT
-#saliency_weight="${ref_path}/exp36-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2/best_model.pt" # res18,512,TFT
-#saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res50,256,TTF
-#saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res50,512,TTF
-#saliency_weight="${ref_path}/exp39-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res18,256,TTF
-#saliency_weight="${ref_path}/exp40-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=512-cls=2/best_model.pt" # res18,512,TTF
+# saliency_weight="${ref_path}/exp17-resnet50_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt"  # res50,256,T,T,T
+# saliency_weight="${ref_path}/exp18-resnet50_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res50,512,T,T,T
+# saliency_weight="${ref_path}/exp19-resnet18_cbam_mask-mask=True-channel_att=True-size=256-cls=2/best_model.pt" # res18,256,T,T,T
+# saliency_weight="${ref_path}/exp20-resnet18_cbam_mask-mask=True-channel_att=True-size=512-cls=2/best_model.pt" # res18,512,T,T,T
+# saliency_weight="${ref_path}/exp29-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res50,256,FTT
+# saliency_weight="${ref_path}/exp30-resnet50_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2/best_model.pt" # res50,512,FTT
+# saliency_weight="${ref_path}/exp31-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=256-cls=2/best_model.pt" # res18,256,FTT
+# saliency_weight="${ref_path}/exp32-resnet18_cbam_mask-mask=True-channel_att=False-spatial_att=True-final_att=True-size=512-cls=2/best_model.pt" # res18,512,FTT
+# saliency_weight="${ref_path}/exp33-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2/best_model.pt" # res50,256,TFT
+# saliency_weight="${ref_path}/exp34-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2/best_model.pt" # res50,512,TFT
+# saliency_weight="${ref_path}/exp35-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=256-cls=2/best_model.pt" # res18,256,TFT
+# saliency_weight="${ref_path}/exp36-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=False-final_att=True-size=512-cls=2/best_model.pt" # res18,512,TFT
+saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res50,256,TTF
+# saliency_weight="${ref_path}/exp37-resnet50_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res50,512,TTF
+# saliency_weight="${ref_path}/exp39-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=256-cls=2/best_model.pt" # res18,256,TTF
+# saliency_weight="${ref_path}/exp40-resnet18_cbam_mask-mask=True-channel_att=True-spatial_att=True-final_att=False-size=512-cls=2/best_model.pt" # res18,512,TTF
 
 python train.py --model_name=$model_name \
                 --image_size=$image_size \
                 --num_classes=$num_classes \
                 --batch_size=12 \
-                --num_epochs=100 \
+                --num_epochs=50 \
                 --model_save_path=$save_path\
                 --device="cuda:0" \
-                --lr=0.0001 \
+                --lr=0.0003 \
                 --moment=0.9 \
                 --use_pretrained=True \
                 --dataset=$datatype \
@@ -64,6 +67,9 @@ python train.py --model_name=$model_name \
                 --mask_weight=1 \
                 --backbone_weights="$backbone_weight"\
                 --saliency_weights="$saliency_weight"\
+                --mask_weight=1\
+                --pseudo_conf=$pseudo_conf \
+                --pseudo_mask_weight=$pseudo_mask_weight
                 #--mask_annotate_file="data/mayo_patient_info.csv" \
                 #--pretrained_weights="/shared/anastasio5/COVID19/ultrasound_breast_cancer/MAYO_resnet50_mask_448/best_model.pt" \
 
@@ -162,3 +168,69 @@ python train.py --model_name=$model_name \
 
 # exp 87-88, size= {256, 512}
 # resnet18-cbam-mask mask=True channel_att=True spatial_att=True final_att=True class=2 BUSI_0.75 
+
+# exp 90
+# resnet18 mask=False class=2 MAYO_4000
+
+# exp 91
+# resnet50 mask=False class=2 MAYO_4000
+
+# exp 92
+# resnet18 mask=False class=2 MAYO_2000
+
+# exp 93
+# resnet50 mask=False class=2 MAYO_2000
+
+# exp 94
+# resnet18 mask=False class=2 MAYO_1000
+
+# exp 95
+# resnet50 mask=False class=2 MAYO_1000
+
+# exp 96-99
+# EB0 mask=False class=2 MAYO_full/4000/2000/1000
+
+# exp 100-103 size=256
+# UNet class=2 BUSI, BUSI_0.75, BUSI_0.5, BUSI_0.25
+
+# exp 104 size=256
+# UNet class=2 MAYO_bbox
+
+# exp 105-108 size=256
+# EB0 class=2 BUSI, BUSI_0.75, BUSI_0.5, BUSI_0.25 
+
+# exp 109 size=256
+# EB0 class=2 MAYO_bbox
+
+# exp 110-113 size=256
+# ViT class=2 BUSI, BUSI_0.75, BUSI_0.5, BUSI_0.25 
+
+# exp 114 size=256
+# ViT class=2 MAYO_bbox
+
+# exp 115-117 size=256
+# resnet50-rasaee-mask BUSI_0.75, BUSI_0.5, BUSI_0.25
+
+# exp 118-120 size=256
+# resnet18-rasaee-mask BUSI_0.75, BUSI_0.5, BUSI_0.25
+
+# exp121 size=256
+# ViT class=2 MAYO
+
+# exp 122-124 size=256
+# resnet50 class=2, BUSI_0.75, BUSI_0.5, BUSI_0.25
+
+# exp 125-127 size=256
+# resnet18 class=2, BUSI_0.75, BUSI_0.5, BUSI_0.25
+
+# exp 128-130 size=256
+# resnet18_cbam_mask, BUSI_0.75, BUSI_0.5, BUSI_0.25 
+
+# exp 131-133 size=256
+# resnet50_cbam_mask, BUSI_0.75, BUSI_0.5, BUSI_0.25 
+
+# exp 134-136 size=256
+# resnet50-cbam-mask ablation: channel_att, spatial_att, final_att class=2 MAYO 
+
+# exp 137, 138 size=256
+# deeplabv3 BUSI, MAYO_bbox

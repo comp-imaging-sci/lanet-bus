@@ -11,3 +11,6 @@ model
 eval
 MAYO_*
 All_train
+*.pth
+plot/*.pdf
+plot/*.png

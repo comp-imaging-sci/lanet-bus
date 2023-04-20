@@ -112,10 +112,10 @@ def draw_net_effect(image_name):
             c = i+2
         else:
             c = i
-        net_prec = ax[0].bar(x+bar_width*(c-1.5), prec[i], width=bar_width, label=net[i], color=net_color[i], yerr=prec_error[i])
-        net_sens = ax[1].bar(x+bar_width*(c-1.5), sens[i], width=bar_width, label=net[i], color=net_color[i], yerr=sens_error[i])
-        net_spec = ax[2].bar(x+bar_width*(c-1.5), spec[i], width=bar_width, label=net[i], color=net_color[i], yerr=speci_error[i])
-        net_f1 = ax[3].bar(x+bar_width*(c-1.5), f1[i], width=bar_width, label=net[i], color=net_color[i], yerr=f1_error[i])
+        net_prec = ax[0].bar(x+bar_width*(c-1.5), prec[i], width=bar_width, label=net[i], yerr=prec_error[i]) #color=net_color[i]
+        net_sens = ax[1].bar(x+bar_width*(c-1.5), sens[i], width=bar_width, label=net[i], yerr=sens_error[i])
+        net_spec = ax[2].bar(x+bar_width*(c-1.5), spec[i], width=bar_width, label=net[i], yerr=speci_error[i])
+        net_f1 = ax[3].bar(x+bar_width*(c-1.5), f1[i], width=bar_width, label=net[i], yerr=f1_error[i])
 
     # ax[0].set_ylabel("Precision (%)")
     # ax[1].set_ylabel("Sensitivity (%)")
@@ -423,13 +423,13 @@ def draw_net_effect_binary(image_name):
 if __name__ == "__main__":
     # img_name = "size_depth_effect_ssim.png"
     # # draw_size_depth(img_name)
-    # img_name = "net_effect_ssim_448.png"
-    # draw_net_effect(img_name)
+    img_name = "method_effect_busi_256_no_sig.png"
+    draw_net_effect(img_name)
     # img_name = "net_depth_224_2.png"
     # draw_method_effect(img_name, group_net=True)
     # img_name = "data_size_224.png"
     # draw_data_size_effect(img_name)
     # img_name = "method_effect_32_HN.png"
     # draw_HN_method_effect(img_name)
-    img_name = "net_effect_512_mayo.png"
-    draw_net_effect_binary(img_name)
+    # img_name = "net_effect_512_mayo.png"
+    # draw_net_effect_binary(img_name)

@@ -2,13 +2,14 @@ import torch
 import os
 import torch.nn as nn
 from torchvision import models
-import os
+import timm
+
 try:    
-    from .seg_net import DeepLabV3
+    from .seg_net import DeepLabV3, US_UNet
     from .resnet_attention import resnet18, resnet50 
     from .attention_net import SaliencyNet
 except:
-    from seg_net import DeepLabV3
+    from seg_net import DeepLabV3, US_UNet
     from resnet_attention import resnet18, resnet50
     from attention_net import SaliencyNet
 
@@ -53,6 +54,82 @@ class LogitResnet(nn.Module):
             return [x, l]
         if self.return_feature:
             return [x, f]
+        return [x]
+
+class LogitEfficientNet(nn.Module):
+    def __init__(self, model_name, num_classes, return_logit=False, use_pretrained=True):
+        super(LogitEfficientNet, self).__init__()
+        if model_name == "efficientnet_b0":
+            model = models.efficientnet_b0(pretrained=use_pretrained)
+        else:
+            print("Only b0 is supported yet")
+        num_features = model.classifier[1].in_features
+        self.return_logit = return_logit
+        self.dropout = nn.Dropout(p=0.25)
+        self.fc = nn.Linear(num_features, num_classes)
+        # self.fc2 = nn.Linear(embedding_dim, num_classes)
+        self.net = nn.Sequential(*list(model.children())[:-1])
+
+    def forward(self, inputs):
+        x = self.net(inputs)
+        x = torch.flatten(x, 1)
+        l = self.dropout(x)
+        x = self.fc(l)
+        # x = self.fc2(l)
+        if self.return_logit:
+            return [x, l]
+        else:
+            return [x]
+
+class ViT(nn.Module):
+    def __init__(self, num_classes=2, image_size=384):
+        super(ViT, self).__init__()
+        # assert image_size in [384, 224], "Image size must be 384 or 224"
+        if image_size == 384:
+            pretrained_w = models.vision_transformer.ViT_B_16_Weights.IMAGENET1K_SWAG_E2E_V1
+        elif image_size == 224:
+            pretrained_w = models.vision_transformer.ViT_B_16_Weights.IMAGENET1K_V1
+        else: 
+            pretrained_w = None
+        model = models.vision_transformer.vit_b_16(weights=pretrained_w, image_size=image_size)
+
+        last_layer = list(model.children())[-1][0]
+        # rest_layer = list(model.children())[:-1]
+        # self.net = nn.Sequential(
+        #     *rest_layer,
+        #     nn.Linear(in_features=last_layer.in_features, out_features=num_classes, bias=True),
+        #     )
+        model.heads[0] = nn.Linear(in_features=last_layer.in_features, out_features=num_classes, bias=True) 
+        self.net = model
+        
+    def forward(self, inputs):
+        x = self.net(inputs)
+        return [x]
+
+class TimmViT(nn.Module):
+    def __init__(self, num_classes, image_size=256, use_pretrained=True):
+        super(TimmViT, self).__init__()
+        if image_size == 224:
+            model_name = "vit_base_patch16_224"
+        elif image_size == 384: 
+            model_name = "vit_base_patch16_384"
+        elif image_size == 256:
+            model_name = "vit_base_patch16_gap_224"
+        model = timm.create_model(model_name, pretrained=use_pretrained)
+        n_features = model.head.in_features
+        model.head = nn.Linear(n_features, num_classes)
+        self.model = model 
+    
+    def freeze(self):
+        # To freeze the residual layers
+        for param in self.model.parameters():
+            param.requires_grad = False
+
+        for param in self.model.head.parameters():
+            param.requires_grad = True
+
+    def forward(self, inputs):
+        x = self.model(inputs)
         return [x]
 
 class LogitDensenet(nn.Module):
@@ -358,7 +435,10 @@ def get_model(model_name,
         num_features = model.fc.in_features
         model.fc = nn.Linear(num_features, num_classes)
     elif model_name == "deeplabv3":
-        model = DeepLabV3(num_classes=num_classes, pretrained=use_pretrained)
+        # model = DeepLabV3(num_classes=num_classes, pretrained=use_pretrained)
+        model = DeepLabV3(num_classes=num_classes, pretrained=False)
+    elif model_name == "unet":
+        model = US_UNet(num_classes=num_classes, pretrained=use_pretrained)
     elif model_name == "resnet50_attention_mask":
         model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, reduction=reduction, attention_weight=attention_weight, num_blocks=num_blocks)
     elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
@@ -375,6 +455,13 @@ def get_model(model_name,
                            backbone_weights=kwargs.get("backbone_weights", ""),
                            saliency_weights=kwargs.get("saliency_weights", "",),
                            device=kwargs.get("device", "cuda:0"))
+    elif model_name == "efficientnet_b0":
+        model = LogitEfficientNet(model_name, num_classes, return_logit=return_logit, use_pretrained=use_pretrained)
+    elif model_name == "ViT":
+        # model = ViT(num_classes, image_size=256)
+        # model = ViT(num_classes, image_size=224)
+        model = TimmViT(num_classes, image_size=224, use_pretrained=use_pretrained)
+        # model.freeze()
     else:
         print("unknown model name!")
     return model
@@ -393,13 +480,19 @@ if __name__ == "__main__":
     # model = nn.Sequential(*list(model.children())[:-1])
     backbone_w = "/Users/zongfan/Downloads/backbone_w.pt"
     # backbone_w = None
-    model = get_model(model_name="resnet50_cbam_mask", use_pretrained=True, image_size=256, num_classes=3, use_mask=True, channel_att=True, attention_kernel_size=3, attention_num_conv=3, backbone_weight=backbone_w, map_size=8)
+    # model = get_model(model_name="resnet50_cbam_mask", use_pretrained=True, image_size=256, num_classes=3, use_mask=True, channel_att=True, attention_kernel_size=3, attention_num_conv=3, backbone_weight=backbone_w, map_size=8)
+    # res = model(inputs)
+    # try:
+    #     print(res[0].shape, res[1].shape)
+    # except:
+    #     print(res.shape)
+    # print(res)
+    model = ViT(2, 256) 
+    # print(list(model.children())[:-1])
+    # model = nn.Sequential(*list(model.children())[:-1])
     res = model(inputs)
-    try:
-        print(res[0].shape, res[1].shape)
-    except:
-        print(res.shape)
     print(res)
+
     # for name, param in model.named_parameters():
     #     if param.requires_grad == True:
     #         print("\t", name, param.shape)

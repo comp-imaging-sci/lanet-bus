@@ -5,7 +5,9 @@ from sklearn.metrics import jaccard_score
 import cv2 
 import os, re
 from torchvision.transforms import Compose, Normalize, ToTensor
-
+import torchvision.transforms.functional as TF
+from typing import Sequence
+import random
 
 # evaluate segmentation performance via IOU
 def batch_iou(pred, mask, num_classes):
@@ -19,9 +21,36 @@ def batch_iou(pred, mask, num_classes):
         # print(iou)
         # print(np.max(pred))
         mask_label = np.max(mask[i])
-        target_iou = iou[mask_label]
-        ious.append(target_iou)
+        if mask_label > 0:
+            target_iou = iou[mask_label]
+            ious.append(target_iou)
+        else:
+            ious.append(0)
     return ious
+
+def dice_score(pred, mask):
+    # flatten the true and predicted masks
+    mask = mask.data.type(torch.int).cpu().numpy().flatten()
+    pred = pred.data.type(torch.int).cpu().numpy().flatten()
+    # calculate the intersection and union between the masks
+
+    intersection = np.sum(mask * pred)
+    union = np.sum(mask) + np.sum(pred)
+
+    # calculate the dice score
+    dice = (2 * intersection) / union
+
+    return dice
+
+
+class CustomRandomRotate:
+    def __init__(self, angles: Sequence[int]):
+        self.angles = angles
+
+    def __call__(self, x):
+        angle = random.choice(self.angles)
+        return TF.rotate(x, angle)
+
 
 # TODO: lose gradient after logical calculation 
 def ssl(pred, mask, sens_w=0.5):
@@ -218,16 +247,20 @@ def show_mask_on_image(img, mask, mask_save_file, use_rgb=False, colormap=cv2.CO
 
 if __name__ == "__main__": 
     from PIL import Image
-    image = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images/038_IM00002.png"
-    # get mayo mask box coord
-    patient_anno_file = "data/mayo_patient_info.csv"
-    anno_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/annotate"
-    coord_dict = parse_mayo_mask_box(patient_anno_file, anno_dir)
-    # get mayo mask 
-    image_size = None 
-    mask = get_image_mask(image, image_size, dataset="MAYO", mask_coord=coord_dict)
-    # print(np.max(mask))
-    image = Image.open(image)
-    image.show()
-    mask = Image.fromarray(mask)
-    mask.show()
+    # image = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images/038_IM00002.png"
+    # # get mayo mask box coord
+    # patient_anno_file = "data/mayo_patient_info.csv"
+    # anno_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/annotate"
+    # coord_dict = parse_mayo_mask_box(patient_anno_file, anno_dir)
+    # # get mayo mask 
+    # image_size = None 
+    # mask = get_image_mask(image, image_size, dataset="MAYO", mask_coord=coord_dict)
+    # # print(np.max(mask))
+    # image = Image.open(image)
+    # image.show()
+    # mask = Image.fromarray(mask)
+    # mask.show()
+    pred = torch.tensor([[[0 ,0 ,0],[0, 1, 1], [0,0,1]]])
+    mask = torch.tensor([[[0, 0, 0],[0, 1, 0], [0,0,0]]])
+    res = batch_iou(pred, mask, 2)
+    print(res)

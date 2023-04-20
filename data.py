@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np 
 import re
 import random
-from util import get_image_mask, dilute_mask, parse_mayo_mask_box
+from util import get_image_mask, dilute_mask, parse_mayo_mask_box, CustomRandomRotate
 
 
 ORI_LABELS = ["malignant", "benign"] # ORI dataset labels: https://data.mendeley.com/datasets/wmy84gzngw/1
@@ -20,6 +20,9 @@ ORI_LABELS = ["malignant", "benign"] # ORI dataset labels: https://data.mendeley
 # binary
 BUSI_LABELS = ["malignant", "benign"]
 MAYO_LABELS = ["Malignant", "Benign"] 
+
+
+
 
 # TODO: add gaussian noise or white noise to mask 
 class BUSI_dataset(Dataset):
@@ -185,7 +188,8 @@ class MAYO_dataset(Dataset):
                 # torch.set_rng_state(state)
                 mask = self._mask_transform(mask)
                 mask = mask.type(torch.float)
-                mask = mask * label_id  # normal case is identical to backaground
+                # mask = mask * label_id  # normal case is identical to backaground
+                
         # dummy input for testing
         # img = torch.rand(3, 256,256)
         # label_id = 1
@@ -206,7 +210,8 @@ def prepare_data(config):
         'train_image': transforms.Compose([   
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
             # transforms.Resize(config["image_size"]),
-            transforms.RandomRotation(25),
+            # transforms.RandomRotation(25),
+            CustomRandomRotate([90, 180, 270]),
             transforms.RandomResizedCrop(config["image_size"], scale=(0.75, 1.0), ratio=(0.75, 1.33)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),
@@ -218,7 +223,8 @@ def prepare_data(config):
         'train_mask': transforms.Compose([   
             # transforms.Lambda(lambda x: x.crop((0, int(x.height*0.08), x.width, x.height))),  # remove up offset
             # transforms.Resize(config["image_size"]),
-            transforms.RandomRotation(25),
+            # transforms.RandomRotation(25),
+            CustomRandomRotate([90, 180, 270]),
             transforms.RandomResizedCrop(config["image_size"], scale=(0.75, 1.0), ratio=(0.75, 1.33)),
             transforms.RandomHorizontalFlip(),
             transforms.RandomVerticalFlip(),

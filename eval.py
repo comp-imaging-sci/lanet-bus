@@ -8,7 +8,7 @@ import fire
 import numpy as np
 from scipy import stats
 from collections import OrderedDict
-from util import batch_iou, read_image_tensor, draw_segmentation_mask, get_image_mask, show_mask_on_image
+from util import batch_iou, dice_score, read_image_tensor, draw_segmentation_mask, get_image_mask, show_mask_on_image
 import pandas as pd
 from pytorch_grad_cam import GradCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XGradCAM, EigenCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
@@ -177,10 +177,12 @@ class Eval():
                 test_file = "data/busi_test_binary.txt"
             elif self.dataset == "MAYO":
                 train_file = "data/mayo_train_mask_v2.txt"
-                test_file  = "data/mayo_test_mask_v2.txt"
+                # test_file  = "data/mayo_test_mask_v2.txt"
+                test_file = "data/mayo_test_bbox.txt"
             elif self.dataset == "MAYO_bbox":
                 train_file = "data/mayo_train_bbox.txt"
-                test_file = "data/mayo_test_bbox.txt"
+                # test_file = "data/mayo_test_bbox.txt"
+                test_file = "data/mayo_test_mask_v2.txt"
                 self.dataset = "MAYO"
             elif self.dataset == "test_BUSI":
                 train_file = "example/debug_BUSI.txt"
@@ -200,7 +202,7 @@ class Eval():
                   "train": train_file, 
                   "test": test_file, 
                   "dataset": self.dataset,
-                  "mask": self.model_name in ["deeplabv3", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
+                  "mask": self.model_name in ["deeplabv3", "unet", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
                   "dilute_mask": 0,
                  }
         image_datasets, data_sizes = prepare_data(config)
@@ -236,6 +238,7 @@ class Eval():
             # precision: TP / (TP + FP)
             print("result matrics: ", result_matrics)
             # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
+            res_pre = []
             res_acc = []
             # sensitivity: TP / (TP + FN)
             res_sens = []
@@ -244,29 +247,33 @@ class Eval():
             res_speci = []
             # f1 score: 2TP/(2TP+FP+FN)
             f1_score = []
+
             for i in range(self.num_classes):
                 TP = result_matrics[i,i]
                 FN = np.sum(result_matrics[i,:])-TP
                 spe_matrics = np.delete(result_matrics, i, 0)
                 FP = np.sum(spe_matrics[:, i])
                 TN = np.sum(spe_matrics) - FP
-                acc = TP/(TP+FP)
+                pre = TP/(TP+FP)
+                acc = (TP+TN) / (TP+TN+FP+FN)
                 sens = TP/(TP+FN)
                 speci = TN/(TN+FP)
                 f1 = 2*TP/(2*TP+FP+FN)
+                res_pre.append(pre)
                 res_acc.append(acc)
                 res_speci.append(speci)
                 res_sens.append(sens)
                 f1_score.append(f1)      
-        print('Precision: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_acc[0],res_acc[1], np.mean(res_acc)))
+        print('Accuracy: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_acc[0],res_acc[1], np.mean(res_acc)))
+        print('Precision: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_pre[0],res_pre[1], np.mean(res_pre)))
         print('Sensitivity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_sens[0], res_sens[1], np.mean(res_sens)))
         print('Specificity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_speci[0],res_speci[1], np.mean(res_speci)))
         print('F1 score: w/o: {0:.3f}, with: {1:.3f}, avg{2:.3f}'.format(f1_score[0],f1_score[1], np.mean(f1_score)))
         if return_auc:
-            auc_v, fpr, tpr = calculate_auc(pred_list, label_list, num_classes=self.num_classes)
+            auc_v, tpr, fpr = calculate_auc(pred_list, label_list, num_classes=self.num_classes)
             print("AUC: ", auc_v)
-            print("FPR: ", fpr)
-            print("TRP", tpr)
+            # print("FPR: ", fpr)
+            # print("TRP", tpr)
     
     def iou(self, test_file=None, mask_thres=0.2):
         if test_file is None:
@@ -275,7 +282,8 @@ class Eval():
                 test_file = "data/busi_test_binary.txt"
             elif self.dataset == "MAYO":
                 train_file = "data/mayo_train_mask_v2.txt"
-                test_file = "data/mayo_test_mask_v2.txt"
+                # test_file = "data/mayo_test_mask_v2.txt"
+                test_file = "data/mayo_test_annotate_v2.txt"
             elif self.dataset == "MAYO_bbox":
                 train_file = "data/mayo_train_bbox.txt"
                 test_file = "data/mayo_test_bbox.txt"
@@ -298,7 +306,8 @@ class Eval():
         image_datasets, data_sizes = prepare_data(config)
         dataloader = torch.utils.data.DataLoader(image_datasets["test"], shuffle=False) 
 
-        result_matrics = []
+        iou_res = []
+        dice_res = []
         with torch.no_grad():
             for data in dataloader:
                 if data["mask_exist"] == 0:
@@ -314,11 +323,20 @@ class Eval():
                     # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
                     # pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
                     mask_size = mask.shape[-1]
-                    mask_pred = torch.nn.functional.interpolate(outputs[1], size=(mask_size, mask_size), mode="bilinear", align_corners=True)
+                    if self.model_name in ["unet", "deeplabv3"]:
+                        mask_pred = outputs
+                    else:
+                        mask_pred = outputs[1]
+                    mask_pred = torch.nn.functional.interpolate(mask_pred, size=(mask_size, mask_size), mode="bilinear", align_corners=True)
                     mask_pred = torch.where(mask_pred>mask_thres, 1, 0)
+                
                 iou = batch_iou(mask_pred, mask, 2)
-                result_matrics.append(iou[0])
-        print("Segmentation IOU: ", np.mean(result_matrics))
+                dice = dice_score(mask_pred, mask)
+                iou_res.append(iou[0])
+                dice_res.append(dice)
+
+        print("Segmentation IOU: ", np.mean(iou_res))
+        print("Segmentation Dice: ", np.mean(dice_res))
 
     def saliency(self, image_path, target_category=None, saliency_file=None, method="grad-cam"):
         image_tensor = read_image_tensor(image_path, self.image_size)
@@ -392,3 +410,27 @@ if __name__ == "__main__":
     # # # evaluator.image2mask(seg_image_file, mask_save_file, mask_thres=mask_thres)
     # # evaluator.iou(test_file=seg_image_file, mask_thres=0.35)
     # evaluator.saliency(image_path, saliency_file=saliency_file)
+    # import matplotlib.pyplot as plt
+
+    # TPR = np.array([])
+
+    # FPR = np.array([])
+    
+    # auc = auc(FPR, TPR)
+    # plt.figure()
+    # lw = 2
+    # plt.plot(
+    #     FPR,
+    #     TPR,
+    #     color="darkorange",
+    #     lw=lw,
+    #     label="ROC curve (area = %0.2f)" % auc,
+    # )
+    # plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+    # plt.xlim([0.0, 1.0])
+    # plt.ylim([0.0, 1.05])
+    # plt.xlabel("False Positive Rate")
+    # plt.ylabel("True Positive Rate")
+    # plt.title("Receiver operating characteristic example")
+    # plt.legend(loc="lower right")
+    # plt.show()

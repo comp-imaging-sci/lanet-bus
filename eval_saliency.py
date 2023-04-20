@@ -115,7 +115,8 @@ class Eval():
             target_layers = [self.model.net.layer4[-1]]
         except:
             # print("2", self.model.net[-1][-1])
-            target_layers = [self.model.net[-1][-1]]
+            # target_layers = [self.model.net[-1][-1]] # resnet
+            target_layers = [self.model.net[-2][-1]] # efficientnet
         if method == "grad-cam":
             cam = GradCAM(model=self.model, target_layers=target_layers, use_cuda=False)
         # target_category = [int(target_category)]
@@ -135,27 +136,29 @@ class Eval():
     
 if __name__ == "__main__":
     # fire.Fire(Eval)
-    model_weights = "test/res18_la_mayo.pt"
-    model_weights = "test/res18_mayo.pt"
-    model_name = "resnet18_cbam_mask"
-    model_name = "resnet18"
-    img_size = 256
+    # model_weights = "test/res18_la_mayo.pt"
+    model_weights = "MAYO_train/exp99-efficientnet_b0-mask=False-channel_att=True-spatial_att=True-final_att=True-size=224-cls=2-1000/best_model.pt"
+    # model_weights = "MAYO_bbox_train/exp23-resnet18-mask=False-channel_att=False-size=256-cls=2/best_model.pt"
+    # model_name = "resnet18_cbam_mask"
+    model_name = "efficientnet_b0"
+    img_size = 224
     num_classes = 2
-    dataset = "BUSI"
+    dataset = "MAYO"
     map_size = img_size // 32
-    use_mask = True
+    # use_mask = True
     use_mask = False
     channel_att = True
     spatial_att = True
     final_att = True
     mask_thres = 0.56
     multi_gpu = False
-    image_path = "test/IM00033 annotated.png"
-    image_path = "test/mayo_data/081_IM00027 annotated.png"
+    # image_path = "test/IM00033 annotated.png"
+    image_path = "/shared/radon/TOP/breast_cancer_us/MAYO/data/051-100/images/069_IM00022 annotated.png"
     # saliency_file = "test/test_saliency_2.png"
     # image_path = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/malignant/malignant (11).png"
-    saliency_file = "test/res18_la_sa_mayo_m.png"
-    saliency_file = "test/res18_sa_mayo_m.png"
+    # saliency_file = "test/res18_la_sa_mayo_m.png"
+    saliency_file = "test/069_IM00022 annotated_att.png"
+
     evaluator = Eval(model_name=model_name, 
                  num_classes=num_classes, 
                  model_weights=model_weights,  

@@ -19,8 +19,9 @@ Executable = run_train.sh
 Universe = vanilla
 getenv = true
 request_gpus = 1
+request_memory = 8192
 
 #Log =    /shared/anastasio5/COVID19/ultrasound_breast_cancer/BUSI_train/resnet88_cbam_mask_278_ma/train.log
-Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp88_train.out
-Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp88_train.err
+Output = /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp137_train.out
+#Error =  /shared/anastasio5/COVID19/ultrasound_breast_cancer/All_train/exp69_train.err
 Queue

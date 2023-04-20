@@ -26,7 +26,9 @@ def train(model,
           num_epochs, 
           num_classes,
           device="cpu",
-          mask_weight=None):
+          mask_weight=None,
+          pseudo_conf=0.8,
+          pseudo_mask_weight=0.0):
     """Train Classifier"""
     # best_model_w = copy.deepcopy(model.state_dict())
     best_acc = 0
@@ -42,7 +44,7 @@ def train(model,
     if model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
         # mask_criterion = nn.L1Loss()
         # mask_criterion = nn.BCEWithLogitsLoss().to(device)
-        mask_criterion = nn.BCELoss().to(device)
+        mask_criterion = nn.BCELoss(reduction='none').to(device)
         if mask_weight is None:
             mask_weight = 1.0 
     for epoch in range(num_epochs):
@@ -60,7 +62,7 @@ def train(model,
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
                 labels = data["label"].to(device)
-                if model_name in ["deeplabv3", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                if model_name in ["deeplabv3", "unet", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     masks = data["mask"].to(device)
                     mask_exist = data["mask_exist"].to(device)
                     # print(masks, torch.min(masks), torch.max(masks))
@@ -69,7 +71,7 @@ def train(model,
                 #     optimizer_cent.zero_grad()
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
-                    if model_name == "deeplabv3":
+                    if model_name in ["deeplabv3", "unet"]:
                         # masks = torch.squeeze(masks, dim=1)
                         # masks = masks.permute(1,2,0)
                         # masks = masks.reshape(-1)
@@ -78,25 +80,39 @@ def train(model,
                         # outputs = outputs.reshape(outputs.shape[0]*outputs.shape[1]*outputs.shape[2], outputs.shape[3])
                         # loss = nn.CrossEntropyLoss()(outputs, masks)
                         # _, preds = torch.max(outputs, axis=1)
-                        preds = (nn.Sigmoid()(outputs) > 0.5).type(torch.int)
+                        preds = (outputs > 0.5).type(torch.int)
                         # pred_mask = preds.data.cpu().numpy().ravel()
                         # real_mask = masks.data.cpu().numpy().ravel()
-                    elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
-                        cls_loss = criterion(outputs[0], labels)
-                        # resize masks to final feature size
-                        featmap_size = outputs[1].shape[-1]
-                        masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
-                        mask_loss = mask_criterion(nn.Sigmoid()(outputs[1]), masks_inter)
-                        loss = cls_loss + mask_loss * mask_weight
-                        _, preds = torch.max(outputs[0], 1) 
-                    elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", ]:
+                    # elif model_name == "unet":
+                    #     loss = criterion(outputs, masks)
+                    #     preds = (nn.Sigmoid()(outputs) > 0.5).type(torch.int)
+                    # elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
+                    #     cls_loss = criterion(outputs[0], labels)
+                    #     # resize masks to final feature size
+                    #     featmap_size = outputs[1].shape[-1]
+                    #     masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
+                    #     mask_loss_vec = mask_criterion(nn.Sigmoid()(outputs[1]), masks_inter)
+                    #     mask_loss = torch.mean(mask_loss_vec)
+                    #     loss = cls_loss + mask_loss * mask_weight
+                    #     _, preds = torch.max(outputs[0], 1) 
+                    # elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", ]:
+                    elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", "resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
                         cls_loss = criterion(outputs[0], labels)
                         featmap_size = outputs[1].shape[-1]
                         batch_size = outputs[0].shape[0]
                         masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
                         mask_exist = mask_exist.view([batch_size, 1, 1, 1])
-                        mask_pred = outputs[1] * mask_exist 
-                        mask_loss = mask_criterion(mask_pred, masks_inter)
+                        # set loss weight for pseudo labeling
+                        batch_pseudo_w = torch.where(mask_exist==1, 1.0, pseudo_mask_weight)
+                        # mask_pred = outputs[1] * mask_exist 
+                        mask_pred = outputs[1]
+                        # obtain pseudo labeling 
+                        batch_pseudo_mask = torch.where(mask_pred>=pseudo_conf, 1, 0)
+                        # combine pseudo mask and gt mask
+                        batch_mask = masks_inter + batch_pseudo_mask * (1-mask_exist)
+                        mask_loss_vec = mask_criterion(mask_pred, batch_mask)
+                        # weighted loss
+                        mask_loss = torch.mean(mask_loss_vec * batch_pseudo_w) 
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
                     else:
@@ -113,7 +129,7 @@ def train(model,
                     running_cls_loss += cls_loss.item() * inputs.size(0)
                     running_mask_loss += mask_loss.item() * inputs.size(0)
                 # print(preds, labels.data, torch.sum(preds == labels.data))
-                if model_name == "deeplabv3":
+                if model_name in ["deeplabv3", "unet"]:
                     # match_ratio = np.sum(pred_mask == real_mask) / (input_size ** 2)  # mean via image size
                     ious = batch_iou(preds, masks, 2) # background + foreground
                     running_corrects += np.sum(ious)
@@ -186,7 +202,9 @@ def run(model_name,
         map_size=14,
         reduction_ratio=16, 
         attention_kernel_size=3, 
-        attention_num_conv=3):
+        attention_num_conv=3,
+        pseudo_conf=0.8,
+        pseudo_mask_weight=0.1):
     # get model 
     if use_mask:
         cbam_param = dict(channel_att=channel_att, 
@@ -216,8 +234,21 @@ def run(model_name,
     if dataset == "BUSI":
         train_file = "data/busi_train_binary.txt"
         test_file = "data/busi_test_binary.txt"
+    elif dataset == "BUSI_0.75":
+        train_file = "data/busi_train_binary_bbox_0.75_full_anno.txt"
+        test_file = "data/busi_test_binary.txt"
+        dataset = "BUSI"
+    elif dataset == "BUSI_0.5":
+        train_file = "data/busi_train_binary_bbox_0.5_full_anno.txt"
+        test_file = "data/busi_test_binary.txt"
+        dataset = "BUSI"
+    elif dataset == "BUSI_0.25":
+        train_file = "data/busi_train_binary_bbox_0.25_full_anno.txt"
+        test_file = "data/busi_test_binary.txt"
+        dataset = "BUSI"
     elif dataset == "MAYO":
         train_file = "data/mayo_train_mask_v2.txt"
+        # train_file = "data/mayo_train_mask_part1000.txt"
         test_file  = "data/mayo_test_mask_v2.txt"
     elif dataset == "MAYO_bbox":
         train_file = "data/mayo_train_bbox.txt"
@@ -243,7 +274,7 @@ def run(model_name,
               "train": train_file, 
               "test": test_file, 
               "dataset": dataset,
-              "mask": model_name in ["deeplabv3", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
+              "mask": model_name in ["deeplabv3", "unet", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
               "dilute_mask": dilute_mask,
               }
     image_datasets, data_sizes = prepare_data(config)
@@ -256,7 +287,7 @@ def run(model_name,
             cls_weight = [1.0, 1.0]
     elif dataset in ["MAYO", "All"]:
         cls_weight = [2.0, 1.0]
-    if model_name == "deeplabv3":
+    if model_name in ["deeplabv3", "unet"]:
         # criterion = nn.NLLLoss(reduction="mean").to(device)
         criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(5.0)).to(device)
     else:
@@ -267,8 +298,11 @@ def run(model_name,
         if param.requires_grad == True:
             print("\t", name)
     print("-"*40)
-    # optimizer = optim.SGD(model.parameters(), lr=lr, momentum=moment) 
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    if model_name == "ViT":
+        optimizer = optim.SGD(model.parameters(), lr=lr, momentum=moment) 
+    else:
+        optimizer = optim.Adam(model.parameters(), lr=lr)
     # if use_cent_loss:
     #     criterion_cent = CenterLoss(num_classes, feat_dim=feat_dim).to(device)
     #     optim_cent = torch.optim.SGD(criterion_cent.parameters(), lr=lr_cent)
@@ -283,7 +317,9 @@ def run(model_name,
                            num_epochs=num_epochs, 
                            num_classes=num_classes,
                            device=device,
-                           mask_weight=mask_weight)
+                           mask_weight=mask_weight,
+                           pseudo_conf=pseudo_conf, 
+                           pseudo_mask_weight=pseudo_mask_weight)
     # torch.save(model_ft.state_dict(), model_save_path+'/best_model.pt')
     print("Val acc history: ", hist)
 
