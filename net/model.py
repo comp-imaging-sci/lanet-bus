@@ -458,9 +458,9 @@ def get_model(model_name,
     elif model_name == "efficientnet_b0":
         model = LogitEfficientNet(model_name, num_classes, return_logit=return_logit, use_pretrained=use_pretrained)
     elif model_name == "ViT":
-        # model = ViT(num_classes, image_size=256)
+        model = ViT(num_classes, image_size=256)
         # model = ViT(num_classes, image_size=224)
-        model = TimmViT(num_classes, image_size=224, use_pretrained=use_pretrained)
+        # model = TimmViT(num_classes, image_size=224, use_pretrained=use_pretrained)
         # model.freeze()
     else:
         print("unknown model name!")

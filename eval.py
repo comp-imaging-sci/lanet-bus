@@ -14,7 +14,7 @@ from pytorch_grad_cam import GradCAM, ScoreCAM, GradCAMPlusPlus, AblationCAM, XG
 from pytorch_grad_cam.utils.image import show_cam_on_image
 import cv2
 from sklearn.metrics import roc_auc_score, auc, roc_curve
-
+from torchattacks import PGD
 
 BUSI_LABELS = ["normal", "malignant", "benign"]
 BUSI_LABELS_BINARY = ["malignant", "benign"]
@@ -69,7 +69,8 @@ class Eval():
                  reduction_ratio=16, 
                  attention_num_conv=3, 
                  attention_kernel_size=3,
-                 map_size=14,):
+                 map_size=14,
+                 adv_attack=False):
         super(Eval, self).__init__()
         self.model_name = model_name
         self.num_classes = num_classes
@@ -86,7 +87,11 @@ class Eval():
         self.attention_num_conv = attention_num_conv
         self.attention_kernel_size = attention_kernel_size
         self.map_size = map_size
+        self.adv_attack = adv_attack
         self.load_model()
+        if self.adv_attack:
+            self.atk = PGD(self.model, eps=8/255, alpha=2/255, steps=1, random_start=True)
+            self.atk.set_normalization_used(mean=[0.5], std=[0.5])
     
     def load_model(self):
         if self.use_mask:
@@ -177,8 +182,8 @@ class Eval():
                 test_file = "data/busi_test_binary.txt"
             elif self.dataset == "MAYO":
                 train_file = "data/mayo_train_mask_v2.txt"
-                # test_file  = "data/mayo_test_mask_v2.txt"
-                test_file = "data/mayo_test_bbox.txt"
+                test_file  = "data/mayo_test_mask_v2.txt"
+                # test_file = "data/mayo_test_bbox.txt"
             elif self.dataset == "MAYO_bbox":
                 train_file = "data/mayo_train_bbox.txt"
                 # test_file = "data/mayo_test_bbox.txt"
@@ -218,11 +223,14 @@ class Eval():
         else:
             result_matrics = np.zeros((2, 2))
         pred_list, label_list = [], []
-        with torch.no_grad():
-            for data in dataloader:
-                inputs = data["image"].to(self.device)
-                labels = data["label"].to(self.device)
-                tag = labels.cpu().numpy()[0]
+        
+        for data in dataloader:
+            inputs = data["image"].to(self.device)
+            labels = data["label"].to(self.device)
+            tag = labels.cpu().numpy()[0]
+            if self.adv_attack:
+                inputs = self.atk(inputs, labels, return_logit=True).to(self.device)
+            with torch.no_grad():
                 outputs = self.model(inputs)
                 _, pred = torch.max(outputs[0], 1)
                 score = outputs[0].cpu().numpy()
@@ -235,35 +243,35 @@ class Eval():
                     else:
                         pred_list = np.concatenate([pred_list, score], axis=0)
                     label_list.append(tag)
-            # precision: TP / (TP + FP)
-            print("result matrics: ", result_matrics)
-            # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
-            res_pre = []
-            res_acc = []
-            # sensitivity: TP / (TP + FN)
-            res_sens = []
-            # res_sens = [result_matrics[i, i]/np.sum(result_matrics[i,:]) for i in range(num_classes)]
-            # specificity: TN / (TN+FP)
-            res_speci = []
-            # f1 score: 2TP/(2TP+FP+FN)
-            f1_score = []
+        # precision: TP / (TP + FP)
+        print("result matrics: ", result_matrics)
+        # res_acc = [result_matrics[i, i]/np.sum(result_matrics[:,i]) for i in range(num_classes)]
+        res_pre = []
+        res_acc = []
+        # sensitivity: TP / (TP + FN)
+        res_sens = []
+        # res_sens = [result_matrics[i, i]/np.sum(result_matrics[i,:]) for i in range(num_classes)]
+        # specificity: TN / (TN+FP)
+        res_speci = []
+        # f1 score: 2TP/(2TP+FP+FN)
+        f1_score = []
 
-            for i in range(self.num_classes):
-                TP = result_matrics[i,i]
-                FN = np.sum(result_matrics[i,:])-TP
-                spe_matrics = np.delete(result_matrics, i, 0)
-                FP = np.sum(spe_matrics[:, i])
-                TN = np.sum(spe_matrics) - FP
-                pre = TP/(TP+FP)
-                acc = (TP+TN) / (TP+TN+FP+FN)
-                sens = TP/(TP+FN)
-                speci = TN/(TN+FP)
-                f1 = 2*TP/(2*TP+FP+FN)
-                res_pre.append(pre)
-                res_acc.append(acc)
-                res_speci.append(speci)
-                res_sens.append(sens)
-                f1_score.append(f1)      
+        for i in range(self.num_classes):
+            TP = result_matrics[i,i]
+            FN = np.sum(result_matrics[i,:])-TP
+            spe_matrics = np.delete(result_matrics, i, 0)
+            FP = np.sum(spe_matrics[:, i])
+            TN = np.sum(spe_matrics) - FP
+            pre = TP/(TP+FP)
+            acc = (TP+TN) / (TP+TN+FP+FN)
+            sens = TP/(TP+FN)
+            speci = TN/(TN+FP)
+            f1 = 2*TP/(2*TP+FP+FN)
+            res_pre.append(pre)
+            res_acc.append(acc)
+            res_speci.append(speci)
+            res_sens.append(sens)
+            f1_score.append(f1)      
         print('Accuracy: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_acc[0],res_acc[1], np.mean(res_acc)))
         print('Precision: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_pre[0],res_pre[1], np.mean(res_pre)))
         print('Sensitivity: w/o: {0:.3f}, with: {1:.3f}, avg: {2:.3f}'.format(res_sens[0], res_sens[1], np.mean(res_sens)))

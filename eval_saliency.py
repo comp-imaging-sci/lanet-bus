@@ -137,8 +137,9 @@ class Eval():
 if __name__ == "__main__":
     # fire.Fire(Eval)
     # model_weights = "test/res18_la_mayo.pt"
-    model_weights = "MAYO_train/exp99-efficientnet_b0-mask=False-channel_att=True-spatial_att=True-final_att=True-size=224-cls=2-1000/best_model.pt"
-    # model_weights = "MAYO_bbox_train/exp23-resnet18-mask=False-channel_att=False-size=256-cls=2/best_model.pt"
+    model_weights = "MAYO_train/exp96-efficientnet_b0-mask=False-channel_att=True-spatial_att=True-final_att=True-size=224-cls=2-full/best_model.pt"
+    # model_weights = "MAYO_bbox_train/exp21-resnet50-mask=False-channel_att=False-size=256-cls=2/best_model.pt"
+    # model_weights = "MAYO_bbox_train/exp23-resnet18-mask=False-channel_att=False-size=256-cls=2/w_epoch_96.pt" 
     # model_name = "resnet18_cbam_mask"
     model_name = "efficientnet_b0"
     img_size = 224
@@ -153,11 +154,11 @@ if __name__ == "__main__":
     mask_thres = 0.56
     multi_gpu = False
     # image_path = "test/IM00033 annotated.png"
-    image_path = "/shared/radon/TOP/breast_cancer_us/MAYO/data/051-100/images/069_IM00022 annotated.png"
+    image_path = "/shared/radon/TOP/breast_cancer_us/MAYO/data/051-100/images/086_IM00004 annotated.png"
     # saliency_file = "test/test_saliency_2.png"
     # image_path = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/malignant/malignant (11).png"
     # saliency_file = "test/res18_la_sa_mayo_m.png"
-    saliency_file = "test/069_IM00022 annotated_att.png"
+    saliency_file = "test/086_IM00004 annotated_att.png"
 
     evaluator = Eval(model_name=model_name, 
                  num_classes=num_classes, 

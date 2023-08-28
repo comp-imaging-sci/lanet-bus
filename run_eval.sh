@@ -1,16 +1,16 @@
 #!/bin/bash
 img_size=256
-use_mask=True
+use_mask=False
 channel_att=True
 spatial_att=True
 final_att=True
 dataset="MAYO_bbox"
-model_name="deeplabv3"
+model_name="ViT"
 map_size=$(expr $img_size / 32)
 #map_size=$img_size
-exp="exp138"
+exp="exp114"
 declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/best_model.pt" )
-declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_46.pt" )
+# declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2/w_epoch_46.pt" )
 # declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-spatial_att=${spatial_att}-final_att=${final_att}-size=${img_size}-cls=2_0.25/w_epoch_41.pt" )
 # declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/best_model.pt" )
 # declare -a StringArray=( "${exp}-${model_name}-mask=${use_mask}-channel_att=${channel_att}-size=${img_size}-cls=2/w_epoch_96.pt" )
@@ -35,7 +35,7 @@ do
                --num_classes=2 \
                --model_weights=$full_path \
                --image_size=$img_size \
-               --device="cuda:0" \
+               --device="cuda:1" \
                --dataset=$dataset \
                --multi_gpu=False \
                --use_mask=$use_mask \
@@ -46,10 +46,11 @@ do
                --attention_num_conv=3 \
                --attention_kernel_size=3 \
                --map_size=$map_size \
-                iou \
-               --mask_thres=0.5 \
-            #     accuracy \
-            #    --binary_class=True \
+               --adv_attack=True \
+                accuracy \
+               --binary_class=False \
+            #     iou \
+            #    --mask_thres=0.5 \
                #--test_file=/shared/anastasio5/COVID19/data/originals/orig_train_sample.txt
     echo "Model processed: $model"
     echo "======================="
