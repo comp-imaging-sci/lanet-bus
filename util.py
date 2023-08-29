@@ -1,6 +1,5 @@
 import torch 
 import numpy as np
-import pandas as pd
 from sklearn.metrics import jaccard_score
 import cv2 
 import os, re
@@ -52,23 +51,6 @@ class CustomRandomRotate:
         return TF.rotate(x, angle)
 
 
-# TODO: lose gradient after logical calculation 
-def ssl(pred, mask, sens_w=0.5):
-    """Sensitivity specificity loss"""
-    eps=1e-6
-    confusing_matrix = (pred==1)&(mask==1)
-    # confusing_matrix.requires_grad= True
-    tp = torch.sum(confusing_matrix, axis=(1,2,3))
-    fn = torch.sum((pred==0)&(mask==1), axis=(1,2,3))
-    sens = tp/(tp+fn+eps)
-    tn = torch.sum((pred==0)&(mask==0), axis=(1,2,3))
-    fp = torch.sum((pred==1)&(mask==0), axis=(1,2,3))
-    speci = tn/(tn+fp+eps)
-    print(sens, speci)
-    ssl = torch.sum(sens_w * sens + (1-sens_w) * speci)
-    return ssl
-
-
 def draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, save_file):
     """
     image_tensor: input image tensor for predicting masks, 4D (N, C, H, W)
@@ -77,13 +59,13 @@ def draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, sav
     """
     figure = np.array([])
     for i in range(len(image_tensor)):
-        img = image_tensor[i].numpy()
+        img = image_tensor[i].cpu().numpy()
         # restore
         img = (img + 1.) / 2. * 255
-        pred_mask = pred_mask_tensor[i].numpy()
+        pred_mask = pred_mask_tensor[i].cpu().numpy()
         pred_mask = pred_mask.repeat(3, axis=0)
         pred_mask = pred_mask * 255
-        real_mask = real_mask_tensor[i].numpy()
+        real_mask = real_mask_tensor[i].cpu().numpy()
         real_mask = real_mask.repeat(3, axis=0) 
         img = np.concatenate([img, real_mask, pred_mask], axis=2)
         img_pair = np.transpose(img, (1, 2, 0)).astype(np.uint8)
@@ -109,36 +91,6 @@ def read_image_tensor(image_path, image_size):
     img = img.permute(0, 3, 1, 2)
     return img
 
-
-def parse_mayo_mask_box(patient_mask_file, box_anno_dir):
-    """Parse patient annotation information to get the rough mask region coordinates"""
-    df = pd.read_csv(patient_mask_file)
-    df = df.fillna("")
-    box_coord = {}
-    masks = df["annotate"].tolist()
-    for idx, pid in enumerate(df["patient"].tolist()):
-        if masks[idx]:
-            pid_masks = masks[idx].split(":")
-            pbox = []
-            # read all mask images and get boxes
-            for pid_mask in pid_masks:
-                mask_file = os.path.join(box_anno_dir, "{}_{} annotated.png_bbox.txt".format(pid, pid_mask))
-                with open(mask_file, "r") as f:
-                    box_str = f.readline().strip()
-                    box_str_list = box_str.split(",")
-                    box = [int(c) for c in box_str_list] 
-                    pbox.append(box)
-                f.close()
-            # merge box to get the union
-            pbox = np.array(pbox)
-            union_xl = pbox[:, 0].min()
-            union_yl = pbox[:, 1].min()
-            union_xr = pbox[:, 2].max()
-            union_yr = pbox[:, 3].max()
-            box_coord[pid] = [union_xl, union_yl, union_xr, union_yr]
-        else:
-            box_coord[pid] = [0, 0, 854, 500]
-    return box_coord
 
 def get_image_mask(image_name, image_size=None, dataset="BUSI", mask_coord=None):
     """
@@ -166,25 +118,12 @@ def get_image_mask(image_name, image_size=None, dataset="BUSI", mask_coord=None)
                 break
     elif dataset == "MAYO":
         # MAYO dataset has bounding box[left x, left y, right x, right y] as rough mask information
-        # bbox_name = os.path.join(image_dir, "../annotate/"+image_base_name+".png_bbox.txt")
-        # with open(bbox_name, "r") as f:
-        #     box_str = f.readline().strip()
-        #     box_str_list = box_str.split(",")
-        #     box = [int(c) for c in box_str_list]
-        # assert mask_coord, "mask coord must be provided (using parse_mayo_mask_box)"
-        # pid = re.search("(\d+)_IM.*", image_base_name).group(1)
-        # box = mask_coord[pid]
         box = mask_coord
         image = cv2.imread(image_name)
         img_h, img_w, _ = image.shape
         # set mask region as 255
         mask = np.zeros((img_h, img_w))
         mask[box[1]:box[3], box[0]:box[2]] = 255
-        # f.close()
-    # mask = mask / 255
-    # mask = np.expand_dims(mask, 0).astype(np.uint8) 
-    # mask = np.expand_dims(mask, 0).transpose(0, 3, 1, 2)
-    # mask = torch.tensor(mask)
     mask = mask.astype(np.uint8)
     if image_size:
         mask = cv2.resize(mask, (image_size, image_size))
@@ -245,21 +184,7 @@ def show_mask_on_image(img, mask, mask_save_file, use_rgb=False, colormap=cv2.CO
     cv2.imwrite(mask_save_file, result)
     
 
-if __name__ == "__main__": 
-    from PIL import Image
-    # image = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/images/038_IM00002.png"
-    # # get mayo mask box coord
-    # patient_anno_file = "data/mayo_patient_info.csv"
-    # anno_dir = "/Users/zongfan/Projects/data/breas_cancer_us/ultrasound/annotate"
-    # coord_dict = parse_mayo_mask_box(patient_anno_file, anno_dir)
-    # # get mayo mask 
-    # image_size = None 
-    # mask = get_image_mask(image, image_size, dataset="MAYO", mask_coord=coord_dict)
-    # # print(np.max(mask))
-    # image = Image.open(image)
-    # image.show()
-    # mask = Image.fromarray(mask)
-    # mask.show()
+if __name__ == "__main__":
     pred = torch.tensor([[[0 ,0 ,0],[0, 1, 1], [0,0,1]]])
     mask = torch.tensor([[[0, 0, 0],[0, 1, 0], [0,0,0]]])
     res = batch_iou(pred, mask, 2)

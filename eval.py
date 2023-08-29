@@ -6,7 +6,6 @@ except:
 from data import prepare_data
 import fire
 import numpy as np
-from scipy import stats
 from collections import OrderedDict
 from util import batch_iou, dice_score, read_image_tensor, draw_segmentation_mask, get_image_mask, show_mask_on_image
 import pandas as pd
@@ -15,20 +14,10 @@ from pytorch_grad_cam.utils.image import show_cam_on_image
 import cv2
 from sklearn.metrics import roc_auc_score, auc, roc_curve
 from torchattacks import PGD
+import os
 
-BUSI_LABELS = ["normal", "malignant", "benign"]
 BUSI_LABELS_BINARY = ["malignant", "benign"]
-ORIG_LABELS = ["malignant", "benign"]
 MAYO_LABELS = ["Malignant", "Benign"]
-
-
-def mean_confidence_interval(x, confidence=0.95):
-    # get CI with 0.95 confidence following normal gaussian distribution
-    n = len(x)
-    m, se = np.mean(x), stats.sem(x)
-    ci = stats.t.ppf((1 + confidence) / 2., n-1) * se
-    # ci = 1.96 * se  # assume gaussian distribution
-    return m, ci
 
 
 def calculate_auc(pred, label, num_classes=3):
@@ -58,19 +47,19 @@ class Eval():
     def __init__(self, model_name, 
                  num_classes, 
                  model_weights,  
-                 image_size=224, 
-                 device="cpu",
-                 dataset="covidx",
+                 image_size=256, 
+                 device="cuda:0",
+                 dataset="BUSI",
                  multi_gpu=False,
-                 use_mask=True,
-                 channel_att=False,
-                 spatial_att=True,
-                 final_att=True,
+                 use_cam=False,
+                 use_sam=True,
+                 use_mam=True,
                  reduction_ratio=16, 
                  attention_num_conv=3, 
                  attention_kernel_size=3,
                  map_size=14,
-                 adv_attack=False):
+                 adv_attack=False,
+                 return_mask=True):
         super(Eval, self).__init__()
         self.model_name = model_name
         self.num_classes = num_classes
@@ -79,44 +68,40 @@ class Eval():
         self.device = device
         self.dataset = dataset
         self.multi_gpu = multi_gpu
-        self.use_mask = use_mask
-        self.channel_att = channel_att
-        self.spatial_att = spatial_att
-        self.final_att = final_att
+        self.use_cam = use_cam
+        self.use_sam = use_sam
+        self.use_mam = use_mam
         self.reduction_ratio = reduction_ratio
         self.attention_num_conv = attention_num_conv
         self.attention_kernel_size = attention_kernel_size
         self.map_size = map_size
+        self.return_mask = return_mask
         self.adv_attack = adv_attack
         self.load_model()
         if self.adv_attack:
-            self.atk = PGD(self.model, eps=8/255, alpha=2/255, steps=1, random_start=True)
+            self.atk = PGD(self.model, eps=8/255, alpha=2/255, steps=4, random_start=True)
             self.atk.set_normalization_used(mean=[0.5], std=[0.5])
     
     def load_model(self):
-        if self.use_mask:
-            cbam_param = dict(channel_att=self.channel_att, 
-                          spatial_att=self.spatial_att,
-                          final_att=self.final_att,
-                          reduction_ratio=self.reduction_ratio, 
-                          attention_num_conv=self.attention_num_conv, 
-                          attention_kernel_size=self.attention_kernel_size,
-                          device=self.device,
-                          backbone_weights="")
-        else:
-            cbam_param = {}
+        cbam_param = dict(use_cam=self.use_cam, 
+                        use_sam=self.use_sam,
+                        use_mam=self.use_mam,
+                        reduction_ratio=self.reduction_ratio, 
+                        attention_num_conv=self.attention_num_conv, 
+                        attention_kernel_size=self.attention_kernel_size,
+                        device=self.device,
+                        backbone_weights="")
         self.model = get_model(model_name=self.model_name, 
                           num_classes=self.num_classes, 
                           use_pretrained=True, 
-                          return_logit=False,
-                          use_mask=self.use_mask,
                           map_size=self.map_size,
+                          return_mask=self.return_mask,
                           **cbam_param).to(self.device)
         state_dict=torch.load(self.model_weights, map_location=torch.device(self.device))
         if self.multi_gpu:
             new_state_dict = OrderedDict()
             for k, v in state_dict.items():
-                name = k[7:] # remove 'module.' of dataparallel
+                name = k[7:] # remove 'module.' due to data_parallel
                 new_state_dict[name]=v
             self.model.load_state_dict(new_state_dict)
         else:
@@ -126,8 +111,7 @@ class Eval():
     def image2mask(self, 
                    seg_image_list=None, 
                    mask_save_file=None, 
-                   mask_thres=0.3,
-                   #binary_mask=True
+                   mask_thres=0.5,
                   ):
         # load images in the seg_image_list if exists
         # draw mask instead of computing the IOU values or other metrics
@@ -143,7 +127,6 @@ class Eval():
         for i, image in enumerate(images):
             image_tensor = read_image_tensor(image, self.image_size)
             mask = get_image_mask(image, self.image_size, dataset=self.dataset, mask_coord=mask_coord[i])
-            # mask = mask / 255
             mask = np.expand_dims(mask, 0)
             mask = torch.tensor(mask)
             real_mask_list.append(mask)
@@ -161,48 +144,11 @@ class Eval():
                 # interpolate mask to original size
                 prob = torch.nn.functional.interpolate(outputs[1], size=(self.image_size, self.image_size), mode="bilinear", align_corners=True)
                 mask_pred = torch.where(prob>mask_thres, 1, 0)
-            #else:
-            #    _, prob = torch.max(outputs, 1, keepdim=True)
         draw_segmentation_mask(image_tensor, real_mask_tensor, mask_pred, mask_save_file) 
-        #if binary_mask:
-        #    pred_mask_tensor = (prob>0.5).type(torch.int)
-        #    draw_segmentation_mask(image_tensor, real_mask_tensor, pred_mask_tensor, mask_save_file) 
-        #else:
-        #    pred_mask_tensor = prob[0] # use first image
-        #    img = (image_tensor[0]+1)/2 # scale to 0-1
-        #    img = img.numpy().transpose([1, 2, 0])
-        #    mask = pred_mask_tensor[0].cpu().detach().numpy()
-        #    # mask = mask / np.max(mask)
-        #    show_mask_on_image(img, mask, mask_save_file, use_rgb=False)
+    
         
-    def accuracy(self, test_file=None, binary_class=True, return_auc=True):
-        if test_file is None:
-            if self.dataset == "BUSI":
-                train_file = "data/busi_train_binary.txt"
-                test_file = "data/busi_test_binary.txt"
-            elif self.dataset == "MAYO":
-                train_file = "data/mayo_train_mask_v2.txt"
-                test_file  = "data/mayo_test_mask_v2.txt"
-                # test_file = "data/mayo_test_bbox.txt"
-            elif self.dataset == "MAYO_bbox":
-                train_file = "data/mayo_train_bbox.txt"
-                # test_file = "data/mayo_test_bbox.txt"
-                test_file = "data/mayo_test_mask_v2.txt"
-                self.dataset = "MAYO"
-            elif self.dataset == "test_BUSI":
-                train_file = "example/debug_BUSI.txt"
-                test_file  = "example/debug_BUSI.txt"
-                self.dataset = "BUSI"
-            elif self.dataset == "test_MAYO":
-                train_file = "example/debug_MAYO_mask.txt"
-                test_file  = "example/debug_MAYO_mask.txt"
-                self.dataset = "MAYO"
-            elif self.dataset == "All":
-                train_file = ["data/mayo_train_mask_v2.txt", "data/busi_train_binary.txt"]
-                test_file = ["data/mayo_test_mask_v2.txt", "data/busi_test_binary.txt"]
-                self.dataset = "All"
-        else:
-            train_file = test_file
+    def accuracy(self, test_file, return_auc=True):
+        train_file = test_file
         config = {"image_size": self.image_size, 
                   "train": train_file, 
                   "test": test_file, 
@@ -213,15 +159,7 @@ class Eval():
         image_datasets, data_sizes = prepare_data(config)
         dataloader = torch.utils.data.DataLoader(image_datasets["test"], shuffle=False) 
 
-        if self.dataset == "BUSI":
-            if binary_class:
-                result_matrics = np.zeros((2, 2))  
-            else:
-                result_matrics = np.zeros((3, 3)) 
-        elif self.dataset in ["MAYO", "MAYO_bbox"]:
-            result_matrics = np.zeros((2, 2)) 
-        else:
-            result_matrics = np.zeros((2, 2))
+        result_matrics = np.zeros((2, 2))
         pred_list, label_list = [], []
         
         for data in dataloader:
@@ -232,9 +170,10 @@ class Eval():
                 inputs = self.atk(inputs, labels, return_logit=True).to(self.device)
             with torch.no_grad():
                 outputs = self.model(inputs)
-                _, pred = torch.max(outputs[0], 1)
-                score = outputs[0].cpu().numpy()
-                # score = outputs[0].numpy()
+                if self.model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                    outputs = outputs[0]
+                _, pred = torch.max(outputs, 1)
+                score = outputs.cpu().numpy()
                 pred = int(pred.item())
                 result_matrics[tag][pred] += 1
                 if return_auc:
@@ -283,29 +222,8 @@ class Eval():
             # print("FPR: ", fpr)
             # print("TRP", tpr)
     
-    def iou(self, test_file=None, mask_thres=0.2):
-        if test_file is None:
-            if self.dataset == "BUSI":
-                train_file = "data/busi_train_binary.txt"
-                test_file = "data/busi_test_binary.txt"
-            elif self.dataset == "MAYO":
-                train_file = "data/mayo_train_mask_v2.txt"
-                # test_file = "data/mayo_test_mask_v2.txt"
-                test_file = "data/mayo_test_annotate_v2.txt"
-            elif self.dataset == "MAYO_bbox":
-                train_file = "data/mayo_train_bbox.txt"
-                test_file = "data/mayo_test_bbox.txt"
-                self.dataset = "MAYO"
-            elif self.dataset == "test_BUSI":
-                train_file = "example/debug_BUSI.txt"
-                test_file = "example/debug_BUSI.txt"
-                self.dataset = "BUSI"
-            elif self.dataset == "test_MAYO":
-                train_file = "example/debug_MAYO.txt"
-                test_file = "example/debug_MAYO.txt"
-                self.dataset = "MAYO"
-        else:
-            train_file = test_file
+    def iou(self, test_file, mask_thres=0.5):
+        train_file = test_file
         config = {"image_size": self.image_size, 
                 "train": train_file, 
                 "test": test_file, 
@@ -323,38 +241,28 @@ class Eval():
                 img = data["image"].to(self.device)
                 outputs = self.model(img)
                 mask = data["mask"].to(self.device)
-                if self.num_classes == 1:
-                    prob = torch.nn.Sigmoid()(outputs)
-                    mask_pred = (prob>0.5).type(torch.int)
-                else:
-                    # _, pred_mask_tensor = torch.max(outputs, 1, keepdim=True)
-                    # print(torch.max(pred_mask_tensor), torch.max(outputs), outputs)
-                    # pred_mask_tensor = (pred_mask_tensor>0).type(torch.int)
-                    mask_size = mask.shape[-1]
-                    if self.model_name in ["unet", "deeplabv3"]:
-                        mask_pred = outputs
-                    else:
-                        mask_pred = outputs[1]
-                    mask_pred = torch.nn.functional.interpolate(mask_pred, size=(mask_size, mask_size), mode="bilinear", align_corners=True)
-                    mask_pred = torch.where(mask_pred>mask_thres, 1, 0)
+                mask_size = mask.shape[-1]
+                if self.model_name in ["unet", "deeplabv3"]:
+                    mask_pred = outputs
+                elif self.model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                    mask_pred = outputs[1]
+                mask_pred = torch.nn.functional.interpolate(mask_pred, size=(mask_size, mask_size), mode="bilinear", align_corners=True)
+                mask_pred = torch.where(mask_pred>mask_thres, 1, 0)
                 
                 iou = batch_iou(mask_pred, mask, 2)
                 dice = dice_score(mask_pred, mask)
                 iou_res.append(iou[0])
                 dice_res.append(dice)
 
-        print("Segmentation IOU: ", np.mean(iou_res))
-        print("Segmentation Dice: ", np.mean(dice_res))
+        print("Localization IOU: ", np.mean(iou_res))
+        print("Localization Dice: ", np.mean(dice_res))
 
-    def saliency(self, image_path, target_category=None, saliency_file=None, method="grad-cam"):
-        image_tensor = read_image_tensor(image_path, self.image_size)
+    def saliency(self, image_path, target_category=None, saliency_path=None, method="grad-cam"):
+        image_tensor = read_image_tensor(image_path, self.image_size).to(self.device)
         try:
-            # print(self.model.net.layer4[-1])
             # target_layers = [self.model.net.layer4[-1][-1]]
-            # print("1", self.model.avgpool) 
             target_layers = [self.model.net.layer4[-1]]
         except:
-            # print("2", self.model.net[-1][-1])
             target_layers = [self.model.net[-1][-1]]
         if method == "grad-cam":
             cam = GradCAM(model=self.model, target_layers=target_layers, use_cuda=False)
@@ -369,76 +277,9 @@ class Eval():
         img = cv2.resize(img, (self.image_size, self.image_size))
         img = img / 255
         visualization = show_cam_on_image(img, grayscale_cam, use_rgb=False)
-        cv2.imwrite(saliency_file, visualization)
-        print("Draw saliency map with {} done! Save in {}".format(method, saliency_file))
+        cv2.imwrite(saliency_path, visualization)
+        print("Draw saliency map with {} done! Save in {}".format(method, saliency_path))
 
     
 if __name__ == "__main__":
     fire.Fire(Eval)
-    # model_weights = "test/res50_mask_256_busi.pt"
-    # # # model_weights = "test/deeplab_448.pt" 
-    # # # model_weights = "test/res50_256_mayo.pt"
-    # # # model_weights = "test/res50_256_busi.pt"
-    # # model_weights = "test/res50_mask_256_mayo.pt" 
-    # # seg_image_file = "test/mayo_data/mayo_sample.txt"
-    # # # seg_image_file = "test/busi_sample_binary.txt"
-    # # # mask_save_file = "plot/mayo_sample_mask.png"
-    # # mask_save_file = "plot/busi_sample_mask.png"
-    # # # model_name = "resnet50_cbam_mask"
-    # # # model_name = "deeplabv3"
-    # model_name = "resnet50_cbam_mask"
-    # img_size = 256
-    # num_classes = 2
-    # dataset = "MAYO"
-    # map_size = img_size // 32
-    # use_mask = True
-    # channel_att = True
-    # mask_thres = 0.56
-    # multi_gpu = False
-    # image_path = "test/IM00033 annotated.png"
-    # saliency_file = "test/test_saliency_2.png"
-    # # # image_path = "/Users/zongfan/Downloads/cancer_ultrasound_project/breast_cancer_project/test/test_images/images/214_IM00004 annotated.png"
-    # # # image_path = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/malignant/malignant (14).png"
-    # # # image_path = "/Users/zongfan/Projects/data/breas_cancer_us/Dataset_BUSI_with_GT/benign/benign (274).png"
-    # # # saliency_file = "plot/res50_mask_256_busi_malig_saliency_1.png"
-    # evaluator = Eval(model_name=model_name, 
-    #              num_classes=num_classes, 
-    #              model_weights=model_weights,  
-    #              image_size=img_size, 
-    #              device="cpu",
-    #              dataset=dataset,
-    #              multi_gpu=multi_gpu,
-    #              use_mask=use_mask,
-    #              channel_att=channel_att,
-    #              reduction_ratio=16, 
-    #              attention_num_conv=3, 
-    #              attention_kernel_size=3,
-    #              map_size=map_size)
-
-    # # # evaluator.image2mask(seg_image_file, mask_save_file, mask_thres=mask_thres)
-    # # evaluator.iou(test_file=seg_image_file, mask_thres=0.35)
-    # evaluator.saliency(image_path, saliency_file=saliency_file)
-    # import matplotlib.pyplot as plt
-
-    # TPR = np.array([])
-
-    # FPR = np.array([])
-    
-    # auc = auc(FPR, TPR)
-    # plt.figure()
-    # lw = 2
-    # plt.plot(
-    #     FPR,
-    #     TPR,
-    #     color="darkorange",
-    #     lw=lw,
-    #     label="ROC curve (area = %0.2f)" % auc,
-    # )
-    # plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
-    # plt.xlim([0.0, 1.0])
-    # plt.ylim([0.0, 1.05])
-    # plt.xlabel("False Positive Rate")
-    # plt.ylabel("True Positive Rate")
-    # plt.title("Receiver operating characteristic example")
-    # plt.legend(loc="lower right")
-    # plt.show()

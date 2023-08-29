@@ -124,13 +124,10 @@ class CBAM(nn.Module):
         return x
 
 
-class SaliencyNet(nn.Module):
-    # upsmaple and concatenate intermediate features, then apply conv to predict the saliency map 
+class LANet(nn.Module):
     def __init__(self, map_size, planes=None, cbam_param=None):
         # planes: channels of each features 
-        super(SaliencyNet, self).__init__()
-        # self._use_cbam = use_cbam
-        # if self._use_cbam:
+        super(LANet, self).__init__()
         self.cbams = nn.ModuleList()
         self.squeeze = nn.ModuleList()
         for plane in planes: 
@@ -147,17 +144,15 @@ class SaliencyNet(nn.Module):
         self.sig = nn.Sigmoid()
 
     def forward(self, x):
-        # if self._use_cbam:
         # extract spatial feature map 
         s = []
         for i, f in enumerate(x):
-            #_, si = self.cbams[i](f)
             si = self.cbams[i](f)
             si = self.squeeze[i](si)
             si = self.upsample(si)
             s.append(si)
         # concate
-        x = torch.cat(s, axis=1) # unable to backprop 
+        x = torch.cat(s, axis=1)
         # average
         # x = torch.mean(x, 1).unsqueeze(1)
         x = self.conv(x)
@@ -178,7 +173,7 @@ if __name__ == "__main__":
     x = [x1, x2, x3, x4]
     planes = [16, 16, 16, 16]
     cbam_param = {"channel_att": True, "spatial_att": True, "attention_kernel_size": 3, "attention_num_conv":3}
-    sl = SaliencyNet(8, planes, cbam_param=cbam_param)
+    sl = LANet(8, planes, cbam_param=cbam_param)
     # s_pretrain_state=torch.load("../model/best_model.pt", map_location="cpu")
     # cur_s_state = self.saliency.state_dict()
     # new_s_state_dict={k:v if v.size()==cur_s_state[k].size()  else  cur_s_state[k] for k,v in zip(cur_s_state.keys(), s_pretrain_state.values())}

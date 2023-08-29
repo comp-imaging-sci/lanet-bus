@@ -6,7 +6,6 @@ try:
     from net.model import get_model
 except:
     from .net.model import get_model
-import copy 
 import time, os
 import fire
 import numpy as np
@@ -24,26 +23,22 @@ def train(model,
           optimizer, 
           criterion, 
           num_epochs, 
-          num_classes,
           device="cpu",
           mask_weight=None,
           pseudo_conf=0.8,
           pseudo_mask_weight=0.0):
     """Train Classifier"""
-    # best_model_w = copy.deepcopy(model.state_dict())
     best_acc = 0
     acc_history = []
     start_t = time.time() 
     max_save_count = 5
     save_counter = 0
     save_interval = 5
-    # add log to tensorborad 
+
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     best_test_model = os.path.join(model_save_path, "best_model.pt") 
     if model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
-        # mask_criterion = nn.L1Loss()
-        # mask_criterion = nn.BCEWithLogitsLoss().to(device)
         mask_criterion = nn.BCELoss(reduction='none').to(device)
         if mask_weight is None:
             mask_weight = 1.0 
@@ -65,37 +60,12 @@ def train(model,
                 if model_name in ["deeplabv3", "unet", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     masks = data["mask"].to(device)
                     mask_exist = data["mask_exist"].to(device)
-                    # print(masks, torch.min(masks), torch.max(masks))
                 optimizer.zero_grad()
-                # if use_cent_loss:
-                #     optimizer_cent.zero_grad()
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
                     if model_name in ["deeplabv3", "unet"]:
-                        # masks = torch.squeeze(masks, dim=1)
-                        # masks = masks.permute(1,2,0)
-                        # masks = masks.reshape(-1)
                         loss = criterion(outputs, masks)
-                        # outputs = outputs.permute(2, 3, 0, 1)
-                        # outputs = outputs.reshape(outputs.shape[0]*outputs.shape[1]*outputs.shape[2], outputs.shape[3])
-                        # loss = nn.CrossEntropyLoss()(outputs, masks)
-                        # _, preds = torch.max(outputs, axis=1)
                         preds = (outputs > 0.5).type(torch.int)
-                        # pred_mask = preds.data.cpu().numpy().ravel()
-                        # real_mask = masks.data.cpu().numpy().ravel()
-                    # elif model_name == "unet":
-                    #     loss = criterion(outputs, masks)
-                    #     preds = (nn.Sigmoid()(outputs) > 0.5).type(torch.int)
-                    # elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
-                    #     cls_loss = criterion(outputs[0], labels)
-                    #     # resize masks to final feature size
-                    #     featmap_size = outputs[1].shape[-1]
-                    #     masks_inter = nn.functional.interpolate(masks, size=(featmap_size, featmap_size), mode="bilinear", align_corners=True)
-                    #     mask_loss_vec = mask_criterion(nn.Sigmoid()(outputs[1]), masks_inter)
-                    #     mask_loss = torch.mean(mask_loss_vec)
-                    #     loss = cls_loss + mask_loss * mask_weight
-                    #     _, preds = torch.max(outputs[0], 1) 
-                    # elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", ]:
                     elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", "resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
                         cls_loss = criterion(outputs[0], labels)
                         featmap_size = outputs[1].shape[-1]
@@ -116,11 +86,8 @@ def train(model,
                         loss = cls_loss + mask_loss * mask_weight
                         _, preds = torch.max(outputs[0], 1)
                     else:
-                        loss = criterion(outputs[0], labels)
-                        _, preds = torch.max(outputs[0], 1)
-                        # preds = preds.data.cpu().numpy().ravel()
-                        # labels = labels.data.cpu().numpy().ravel()
-                    # print(outputs[0], labels)
+                        loss = criterion(outputs, labels)
+                        _, preds = torch.max(outputs, 1)
                     if phase == "train":
                         loss.backward()
                         optimizer.step()
@@ -128,7 +95,6 @@ def train(model,
                 if model_name in ["resnet50_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     running_cls_loss += cls_loss.item() * inputs.size(0)
                     running_mask_loss += mask_loss.item() * inputs.size(0)
-                # print(preds, labels.data, torch.sum(preds == labels.data))
                 if model_name in ["deeplabv3", "unet"]:
                     # match_ratio = np.sum(pred_mask == real_mask) / (input_size ** 2)  # mean via image size
                     ious = batch_iou(preds, masks, 2) # background + foreground
@@ -171,7 +137,7 @@ def load_weights(model, pretrained_weights, multi_gpu=False, device="cpu", num_c
                 else:
                     v.data.fill_(0.01) # bias
         if multi_gpu:
-            name = k[7:] # remove 'module.' of dataparallel
+            name = k[7:] # remove 'module.' of data_parallel
         else:
             name = k
         new_state_dict[name] = v
@@ -179,7 +145,7 @@ def load_weights(model, pretrained_weights, multi_gpu=False, device="cpu", num_c
     return model
 
 def run(model_name, 
-        image_size=448, 
+        image_size=256, 
         num_classes=3, 
         batch_size=32, 
         num_epochs=40, 
@@ -190,15 +156,14 @@ def run(model_name,
         use_pretrained="",
         pretrained_weights="",
         backbone_weights="",
-        saliency_weights="",
+        lanet_weights="",
         dataset="BUSI",
         num_gpus=1, 
         dilute_mask=0,
         mask_weight=None,
-        use_mask=True,
-        channel_att=True,
-        spatial_att=True,
-        final_att=True,
+        use_cam=True,
+        use_sam=True,
+        use_mam=True,
         map_size=14,
         reduction_ratio=16, 
         attention_kernel_size=3, 
@@ -206,23 +171,19 @@ def run(model_name,
         pseudo_conf=0.8,
         pseudo_mask_weight=0.1):
     # get model 
-    if use_mask:
-        cbam_param = dict(channel_att=channel_att, 
-                          spatial_att=spatial_att,
-                          final_att=final_att,
-                          reduction_ratio=reduction_ratio, 
-                          attention_num_conv=attention_num_conv, 
-                          attention_kernel_size=attention_kernel_size,
-                          backbone_weights=backbone_weights,
-                          saliency_weights=saliency_weights,
-                          device=device)
-    else:
-        cbam_param = {}
+    cbam_param = dict(use_cam=use_cam, 
+                      use_sam=use_sam,
+                      use_mam=use_mam,
+                      reduction_ratio=reduction_ratio, 
+                      attention_num_conv=attention_num_conv, 
+                      attention_kernel_size=attention_kernel_size,
+                      backbone_weights=backbone_weights,
+                      lanet_weights=lanet_weights,
+                      device=device)
+
     model = get_model(model_name=model_name,
                       num_classes=num_classes, 
                       use_pretrained=use_pretrained, 
-                      return_logit=False,
-                      use_mask=use_mask,
                       map_size=map_size,
                       **cbam_param).to(device)
     # load pretrained model weights
@@ -234,38 +195,17 @@ def run(model_name,
     if dataset == "BUSI":
         train_file = "data/busi_train_binary.txt"
         test_file = "data/busi_test_binary.txt"
-    elif dataset == "BUSI_0.75":
-        train_file = "data/busi_train_binary_bbox_0.75_full_anno.txt"
-        test_file = "data/busi_test_binary.txt"
-        dataset = "BUSI"
     elif dataset == "BUSI_0.5":
         train_file = "data/busi_train_binary_bbox_0.5_full_anno.txt"
         test_file = "data/busi_test_binary.txt"
         dataset = "BUSI"
-    elif dataset == "BUSI_0.25":
-        train_file = "data/busi_train_binary_bbox_0.25_full_anno.txt"
-        test_file = "data/busi_test_binary.txt"
-        dataset = "BUSI"
     elif dataset == "MAYO":
         train_file = "data/mayo_train_mask_v2.txt"
-        # train_file = "data/mayo_train_mask_part1000.txt"
         test_file  = "data/mayo_test_mask_v2.txt"
     elif dataset == "MAYO_bbox":
         train_file = "data/mayo_train_bbox.txt"
         test_file = "data/mayo_test_bbox.txt"
         dataset = "MAYO"
-    elif dataset == "test_BUSI": 
-        train_file = "example/debug_BUSI.txt"
-        test_file  = "example/debug_BUSI.txt"
-        dataset = "BUSI"
-    elif dataset == "test_MAYO":
-        train_file = "example/debug_MAYO_mask.txt"
-        test_file  = "example/debug_MAYO_mask.txt"
-        dataset = "MAYO"
-    elif dataset == "All":
-        train_file = ["data/mayo_train_mask_v2.txt", "data/busi_train_binary.txt"]
-        test_file = ["data/mayo_test_mask_v2.txt", "data/busi_test_binary.txt"]
-        dataset = "All"
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
         # deploy model on multi-gpus
@@ -281,14 +221,10 @@ def run(model_name,
     dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], shuffle=x=="train", batch_size=batch_size, num_workers=0,   drop_last=True) for x in ["train", "test"]}
     # loss function
     if dataset == "BUSI":
-        if num_classes == 3:
-            cls_weight = [2.0, 1.0, 1.0]
-        else:
-            cls_weight = [1.0, 1.0]
-    elif dataset in ["MAYO", "All"]:
+        cls_weight = [1.0, 1.0]
+    elif dataset == "MAYO":
         cls_weight = [2.0, 1.0]
     if model_name in ["deeplabv3", "unet"]:
-        # criterion = nn.NLLLoss(reduction="mean").to(device)
         criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor(5.0)).to(device)
     else:
         criterion = nn.CrossEntropyLoss(weight=torch.tensor(cls_weight)).to(device)
@@ -303,11 +239,6 @@ def run(model_name,
         optimizer = optim.SGD(model.parameters(), lr=lr, momentum=moment) 
     else:
         optimizer = optim.Adam(model.parameters(), lr=lr)
-    # if use_cent_loss:
-    #     criterion_cent = CenterLoss(num_classes, feat_dim=feat_dim).to(device)
-    #     optim_cent = torch.optim.SGD(criterion_cent.parameters(), lr=lr_cent)
-    # else:
-    #     criterion_cent, optim_cent = None, None
     model_ft, hist = train(model=model, 
                            model_name=model_name, 
                            model_save_path=model_save_path, 
@@ -315,7 +246,6 @@ def run(model_name,
                            optimizer=optimizer, 
                            criterion=criterion, 
                            num_epochs=num_epochs, 
-                           num_classes=num_classes,
                            device=device,
                            mask_weight=mask_weight,
                            pseudo_conf=pseudo_conf, 
@@ -325,12 +255,3 @@ def run(model_name,
 
 if __name__ == "__main__":
     fire.Fire(run)
-    # # training config
-    # input_size = 224
-    # num_classes = 3 
-    # batch_size = 16
-    # num_epoches = 40
-    # model_name = "resnet50"
-    # device = "cuda:0"
-    # input_dir = "/shared/anastasio5/COVID19/data/covidx"
-    # model_save_path = "covidx_res50"

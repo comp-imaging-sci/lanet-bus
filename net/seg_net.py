@@ -22,7 +22,7 @@ class DeepLabV3(nn.Module):
     def __init__(self, num_classes=2, pretrained=True):
         super(DeepLabV3, self).__init__()
         # load model 
-        self.model = models.segmentation.deeplabv3_resnet50(pretrained=pretrained, progress=True)
+        self.model = models.segmentation.deeplabv3_resnet50(weights="DeepLabV3_ResNet50_Weights.DEFAULT", progress=True)
         classifier = models.segmentation.deeplabv3.DeepLabHead(2048, num_classes-1)
         self.model.classifier = classifier
         # self.m = nn.LogSoftmax(dim=1)
@@ -161,9 +161,9 @@ class US_UNet(nn.Module):
     def __init__(self, num_classes, pretrained=False):
         super(US_UNet, self).__init__()
         model = UNet(n_classes=2)
-        if pretrained:
-            state_dict=torch.load("/shared/anastasio5/COVID19/ultrasound_breast_cancer/net/unet_carvana_scale1.0_epoch2.pth")
-            model.load_state_dict(state_dict)
+        if pretrained:   
+            ckpt = "https://github.com/milesial/Pytorch-UNet/releases/download/v3.0/unet_carvana_scale1.0_epoch2.pth"
+            model.load_state_dict(torch.hub.load_state_dict_from_url(ckpt), progress=False)
         model.outc = (OutConv(64, num_classes-1)) 
         initialize_weights(model.outc)
         self.net = model
@@ -175,15 +175,12 @@ class US_UNet(nn.Module):
         return x
 
 if __name__ == "__main__":
-    # model = DeepLabV3(3)
-    model = US_UNet(2, False)
-    # print(model.outc)
+    model = DeepLabV3(2)
+    # model = US_UNet(2, False)
     # state_dict=torch.load("unet_carvana_scale1.0_epoch2.pth")
     # model.load_state_dict(state_dict)
 
     # model = deeplabv3(num_classes=2)
     inputs = torch.rand(4,3,128,128)
     res = model(inputs)
-    # print(res['out'].shape)
-    # print(res.shape)
     print(res.shape)

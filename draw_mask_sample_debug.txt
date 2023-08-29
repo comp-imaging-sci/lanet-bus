@@ -1,2 +1,0 @@
-/shared/anastasio5/COVID19/data/Dataset_BUSI_with_GT/benign/benign (262).png,benign
-/shared/anastasio5/COVID19/data/Dataset_BUSI_with_GT/benign/benign (311).png,benign
