@@ -38,7 +38,7 @@ def train(model,
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     best_test_model = os.path.join(model_save_path, "best_model.pt") 
-    if model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+    if model_name in ["resnet50_rmtl_mask", "resnet18_rmtl_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
         mask_criterion = nn.BCELoss(reduction='none').to(device)
         if mask_weight is None:
             mask_weight = 1.0 
@@ -57,7 +57,7 @@ def train(model,
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
                 labels = data["label"].to(device)
-                if model_name in ["deeplabv3", "unet", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                if model_name in ["deeplabv3", "unet", "resnet50_rmtl_mask", "resnet18_rmtl_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     masks = data["mask"].to(device)
                     mask_exist = data["mask_exist"].to(device)
                 optimizer.zero_grad()
@@ -66,7 +66,7 @@ def train(model,
                     if model_name in ["deeplabv3", "unet"]:
                         loss = criterion(outputs, masks)
                         preds = (outputs > 0.5).type(torch.int)
-                    elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", "resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
+                    elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask", "resnet50_rmtl_mask", "resnet18_rmtl_mask"]:
                         cls_loss = criterion(outputs[0], labels)
                         featmap_size = outputs[1].shape[-1]
                         batch_size = outputs[0].shape[0]
@@ -104,7 +104,7 @@ def train(model,
             datasize = len(dataloader[phase].dataset)
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects / datasize
-            print("{} Loss: {:.4f} (cls loss: {:.4f}; mask loss: {:.4f}), Acc{:.4f}".format(phase, epoch_loss, running_cls_loss/datasize, running_mask_loss/datasize, epoch_acc))
+            print("{} Loss: {:.4f} (cls loss: {:.4f}; mask loss: {:.4f}), Acc: {:.4f}".format(phase, epoch_loss, running_cls_loss/datasize, running_mask_loss/datasize, epoch_acc))
             if phase == 'test' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 torch.save(model.state_dict(), best_test_model)
@@ -153,7 +153,7 @@ def run(model_name,
         device="cuda:0", 
         lr=0.001, 
         moment=0.9, 
-        use_pretrained="",
+        use_pretrained=None,
         pretrained_weights="",
         backbone_weights="",
         lanet_weights="",
@@ -185,6 +185,7 @@ def run(model_name,
                       num_classes=num_classes, 
                       use_pretrained=use_pretrained, 
                       map_size=map_size,
+                      image_size=image_size,
                       **cbam_param).to(device)
     # load pretrained model weights
     if pretrained_weights: 
@@ -214,7 +215,7 @@ def run(model_name,
               "train": train_file, 
               "test": test_file, 
               "dataset": dataset,
-              "mask": model_name in ["deeplabv3", "unet", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
+              "mask": model_name in ["deeplabv3", "unet", "resnet50_rmtl_mask", "resnet18_rmtl_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
               "dilute_mask": dilute_mask,
               }
     image_datasets, data_sizes = prepare_data(config)

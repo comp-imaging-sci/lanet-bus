@@ -96,6 +96,7 @@ class Eval():
                           use_pretrained=True, 
                           map_size=self.map_size,
                           return_mask=self.return_mask,
+                          image_size=self.image_size,
                           **cbam_param).to(self.device)
         state_dict=torch.load(self.model_weights, map_location=torch.device(self.device))
         if self.multi_gpu:
@@ -140,7 +141,7 @@ class Eval():
                 prob = torch.nn.Sigmoid()(outputs)
                 mask_pred = (prob>0.5).type(torch.int)
         else:
-            if self.model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+            if self.model_name in ["resnet50_rmtl_mask", "resnet18_rmtl_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                 # interpolate mask to original size
                 prob = torch.nn.functional.interpolate(outputs[1], size=(self.image_size, self.image_size), mode="bilinear", align_corners=True)
                 mask_pred = torch.where(prob>mask_thres, 1, 0)
@@ -153,7 +154,7 @@ class Eval():
                   "train": train_file, 
                   "test": test_file, 
                   "dataset": self.dataset,
-                  "mask": self.model_name in ["deeplabv3", "unet", "resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
+                  "mask": self.model_name in ["deeplabv3", "unet", "resnet50_rmtl_mask", "resnet18_rmtl_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"],
                   "dilute_mask": 0,
                  }
         image_datasets, data_sizes = prepare_data(config)
@@ -170,7 +171,7 @@ class Eval():
                 inputs = self.atk(inputs, labels, return_logit=True).to(self.device)
             with torch.no_grad():
                 outputs = self.model(inputs)
-                if self.model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                if self.model_name in ["resnet50_rmtl_mask", "resnet18_rmtl_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     outputs = outputs[0]
                 _, pred = torch.max(outputs, 1)
                 score = outputs.cpu().numpy()
@@ -244,7 +245,7 @@ class Eval():
                 mask_size = mask.shape[-1]
                 if self.model_name in ["unet", "deeplabv3"]:
                     mask_pred = outputs
-                elif self.model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
+                elif self.model_name in ["resnet50_rmtl_mask", "resnet18_rmtl_mask", "resnet18_cbam_mask", "resnet50_cbam_mask"]:
                     mask_pred = outputs[1]
                 mask_pred = torch.nn.functional.interpolate(mask_pred, size=(mask_size, mask_size), mode="bilinear", align_corners=True)
                 mask_pred = torch.where(mask_pred>mask_thres, 1, 0)

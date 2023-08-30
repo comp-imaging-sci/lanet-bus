@@ -8,6 +8,9 @@ debug_sample_*
 *.pt
 model
 *.txt
+!busi_train_*.txt
+!busi_test_*.txt
+!requirements.txt
 eval
 MAYO_*
 *.pth

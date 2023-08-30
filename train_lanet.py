@@ -1,3 +1,4 @@
+# Pre-train LA-Net
 import torch
 import torch.optim as optim 
 import torch.nn as nn
@@ -6,39 +7,31 @@ try:
     from net.model import get_model
 except:
     from .net.model import get_model
-import copy 
 import time, os
 import fire
 import numpy as np
 from sklearn.metrics import f1_score, roc_auc_score
-from util import batch_iou
 from collections import OrderedDict
 import re
 
-# torch.autograd.set_detect_anomaly(True)
 
 def train(model, 
           model_save_path, 
           dataloader, 
           optimizer, 
           num_epochs, 
-          device="cpu",
-          mask_weight=None):
+          device="cuda:0"):
     """Train Classifier"""
-    # best_model_w = copy.deepcopy(model.state_dict())
     best_acc = 0
     acc_history = []
     start_t = time.time() 
     max_save_count = 5
     save_counter = 0
     save_interval = 5
-    # add log to tensorborad 
     if not os.path.exists(model_save_path):
         os.makedirs(model_save_path)
     best_test_model = os.path.join(model_save_path, "best_model.pt") 
     mask_criterion = nn.BCELoss().to(device)
-    if mask_weight is None:
-        mask_weight = 1.0 
     for epoch in range(num_epochs):
         print("Epoch {}/{}".format(epoch+1, num_epochs))
         print("-" * 10)
@@ -51,13 +44,9 @@ def train(model,
             running_corrects = 0
             for data in dataloader[phase]:
                 inputs = data["image"].to(device)
-                labels = data["label"].to(device)
                 masks = data["mask"].to(device)
                 mask_exist = data["mask_exist"].to(device)
-                # print(masks, torch.min(masks), torch.max(masks))
                 optimizer.zero_grad()
-                # if use_cent_loss:
-                #     optimizer_cent.zero_grad()
                 with torch.set_grad_enabled(phase == "train"):
                     outputs = model(inputs)
                     featmap_size = outputs[1].shape[-1]
@@ -79,11 +68,10 @@ def train(model,
             datasize = len(dataloader[phase].dataset)
             epoch_loss = running_loss / datasize
             epoch_acc = running_corrects / datasize / (featmap_size * featmap_size)
-            print("{} Loss: {:.4f}; Acc{:.4f}".format(phase, epoch_loss, epoch_acc))
+            print("{} Loss: {:.4f}; Acc: {:.4f}".format(phase, epoch_loss, epoch_acc))
             if phase == 'test' and epoch_acc > best_acc:
                 best_acc = epoch_acc
-                # save saliency
-                torch.save(model.saliency.state_dict(), best_test_model)
+                torch.save(model.lanet.state_dict(), best_test_model)
             if phase == "test":
                 acc_history.append(epoch_acc)
         if not (epoch % save_interval):
@@ -98,7 +86,7 @@ def train(model,
     # model.load_state_dict(torch.load(best_model_w, map_location=torch.device(device)))
     return model, acc_history
 
-def load_weights(model, pretrained_weights, multi_gpu=False, device="cpu", num_classes=3):
+def load_weights(model, pretrained_weights, multi_gpu=False, device="cuda:0", num_classes=2):
     state_dict=torch.load(pretrained_weights, map_location=torch.device(device))
     new_state_dict = OrderedDict()
     for k, v in state_dict.items(): # different class number, drop the last fc layer
@@ -121,48 +109,41 @@ def load_weights(model, pretrained_weights, multi_gpu=False, device="cpu", num_c
     return model
 
 def run(model_name, 
-        image_size=448, 
-        num_classes=3, 
+        image_size=256, 
+        num_classes=2, 
         batch_size=32, 
         num_epochs=40, 
         model_save_path="train_res", 
-        device="cpu", 
+        device="cuda:0", 
         lr=0.001, 
-        moment=0.9, 
-        use_pretrained="",
+        use_pretrained=True,
         pretrained_weights="",
         backbone_weights="",
-        saliency_weights="",
+        lanet_weights="",
         dataset="BUSI",
         num_gpus=1, 
         dilute_mask=0,
-        mask_weight=None,
-        use_mask=True,
-        channel_att=True,
-        spatial_att=True,
-        final_att=True, 
+        use_cam=True,
+        use_sam=True,
+        use_mam=True, 
         map_size=14,
         reduction_ratio=16, 
         attention_kernel_size=3, 
         attention_num_conv=3):
     # get model 
-    if use_mask:
-        cbam_param = dict(channel_att=channel_att, 
-                          spatial_att=spatial_att,
-                          final_att=final_att,
-                          reduction_ratio=reduction_ratio, 
-                          attention_num_conv=attention_num_conv, 
-                          attention_kernel_size=attention_kernel_size,
-                          backbone_weights=backbone_weights,
-                          saliency_weights=saliency_weights,
-                          device=device)
-    else:
-        cbam_param = {}
+    cbam_param = dict(use_cam=use_cam, 
+                        use_sam=use_sam,
+                        use_mam=use_mam,
+                        reduction_ratio=reduction_ratio, 
+                        attention_num_conv=attention_num_conv, 
+                        attention_kernel_size=attention_kernel_size,
+                        backbone_weights=backbone_weights,
+                        lanet_weights=lanet_weights,
+                        device=device)
     model = get_model(model_name=model_name,
                       num_classes=num_classes, 
                       use_pretrained=use_pretrained, 
                       return_logit=False,
-                      use_mask=use_mask,
                       map_size=map_size,
                       **cbam_param).to(device)
     # load pretrained model weights
@@ -172,15 +153,13 @@ def run(model_name,
         except:
             model = load_weights(model, pretrained_weights, multi_gpu=True, device=device, num_classes=num_classes)
     if dataset == "BUSI":
-        #train_file = "data/busi_train_binary.txt"
-        train_file = "data/busi_train_binary_bbox_0.75.txt"
+        train_file = "data/busi_train_binary.txt"
         test_file = "data/busi_test_binary.txt"
     elif dataset == "MAYO":
         train_file = "data/mayo_train_bbox.txt"
         test_file  = "data/mayo_test_bbox.txt"
-    elif dataset == "All":
-        train_file = ["data/mayo_train_bbox.txt", "data/busi_train_binary.txt"]
-        test_file = ["data/mayo_test_bbox.txt", "data/busi_test_binary.txt"]
+    else:
+        raise ValueError("Unknow dataset!")
     if num_gpus > 1:
         device_ids = list(range(num_gpus))
         # deploy model on multi-gpus
@@ -206,19 +185,9 @@ def run(model_name,
                            dataloader=dataloaders, 
                            optimizer=optimizer, 
                            num_epochs=num_epochs, 
-                           device=device,
-                           mask_weight=mask_weight)
+                           device=device)
     # torch.save(model_ft.state_dict(), model_save_path+'/best_model.pt')
     print("Val acc history: ", hist)
 
 if __name__ == "__main__":
     fire.Fire(run)
-    # # training config
-    # input_size = 224
-    # num_classes = 3 
-    # batch_size = 16
-    # num_epoches = 40
-    # model_name = "resnet50"
-    # device = "cuda:0"
-    # input_dir = "/shared/anastasio5/COVID19/data/covidx"
-    # model_save_path = "covidx_res50"

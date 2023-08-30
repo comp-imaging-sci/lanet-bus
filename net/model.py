@@ -27,12 +27,19 @@ class LogitResnet(nn.Module):
     """return network logit"""
     def __init__(self, model_name, num_classes, use_pretrained=True, return_feature=False):
         super(LogitResnet, self).__init__()
+        weights = None
         if model_name == "resnet50":
-            model = models.resnet50(weights="ResNet50_Weights.DEFAULT")
+            if use_pretrained:
+                weights = "ResNet50_Weights.DEFAULT"
+            model = models.resnet50(weights=weights)
         elif model_name == "resnet34":
-            model = models.resnet34(weights="ResNet34_Weights.DEFAULT")
+            if use_pretrained:
+                weights = "ResNet34_Weights.DEFAULT"
+            model = models.resnet34(weights=weights)
         elif model_name == "resnet18":
-            model = models.resnet18(weights="ResNet18_Weights.DEFAULT")
+            if use_pretrained:
+                weights = "ResNet18_Weights.DEFAULT"
+            model = models.resnet18(weights=weights)
         else:
             print("unknown resnet model")
             exit()
@@ -54,8 +61,10 @@ class LogitResnet(nn.Module):
 class LogitEfficientNet(nn.Module):
     def __init__(self, model_name, num_classes, use_pretrained=True):
         super(LogitEfficientNet, self).__init__()
+        if use_pretrained:
+            weights = "EfficientNet_B0_Weights.DEFAULT"
         if model_name == "efficientnet_b0":
-            model = models.efficientnet_b0(pretrained=use_pretrained)
+            model = models.efficientnet_b0(weights=weights)
         else:
             print("Only b0 is supported yet")
         num_features = model.classifier[1].in_features
@@ -195,7 +204,7 @@ class RasaeeMaskHead(nn.Module):
         x = self.sig(x)
         return x 
 
-class ResNetMask(nn.Module):
+class ResNetRMTL(nn.Module):
     """Resnet with mask attention module"""
     def __init__(self,  
                  model_name,
@@ -203,7 +212,7 @@ class ResNetMask(nn.Module):
                  use_pretrained=True, 
                  map_size=256,
                  return_mask=True):
-        super(ResNetMask, self).__init__()
+        super(ResNetRMTL, self).__init__()
         model_info = model_name.split("_")
         resnet_name = model_info[0]
         self.net = LogitResnet(resnet_name, num_classes, return_feature=True, use_pretrained=use_pretrained)
@@ -220,8 +229,6 @@ class ResNetMask(nn.Module):
     def forward(self, x):
         _, x = self.net(x)
         mask = self.mask_module(x)
-        if self.attention:
-            x = x + x * mask
         x = self.c(x)
         if self.return_mask:
             return [x, mask]
@@ -330,8 +337,8 @@ def get_model(model_name,
         model = DeepLabV3(num_classes=num_classes, pretrained=use_pretrained)
     elif model_name == "unet":
         model = US_UNet(num_classes=num_classes, pretrained=use_pretrained)
-    elif model_name in ["resnet50_rasaee_mask", "resnet18_rasaee_mask"]:
-        model = ResNetMask(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size, return_mask=kwargs.get("return_mask", True))
+    elif model_name in ["resnet50_rmtl_mask", "resnet18_rmtl_mask"]:
+        model = ResNetRMTL(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size, return_mask=kwargs.get("return_mask", True))
     elif model_name in ["resnet18_cbam_mask", "resnet50_cbam_mask"]:
         model = ResNetCbam(model_name, num_classes, use_pretrained=use_pretrained, map_size=map_size,
                            use_cam=kwargs.get("use_cam", True),
@@ -354,7 +361,7 @@ if __name__ == "__main__":
     torch.manual_seed(0)
     inputs = torch.rand(2, 3, 256, 256)
     # model = get_model("resnet18", 3, use_pretrained=True)
-    model = get_model("resnet50_rasaee_mask", 3, use_pretrained=False, return_feature=True, device="cpu") 
+    model = get_model("resnet50_rmtl_mask", 3, use_pretrained=False, return_feature=True, device="cpu") 
     # model = ViT(2, 256) 
 
     res = model(inputs)

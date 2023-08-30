@@ -163,7 +163,7 @@ class US_UNet(nn.Module):
         model = UNet(n_classes=2)
         if pretrained:   
             ckpt = "https://github.com/milesial/Pytorch-UNet/releases/download/v3.0/unet_carvana_scale1.0_epoch2.pth"
-            model.load_state_dict(torch.hub.load_state_dict_from_url(ckpt), progress=False)
+            model.load_state_dict(torch.hub.load_state_dict_from_url(ckpt, progress=False))
         model.outc = (OutConv(64, num_classes-1)) 
         initialize_weights(model.outc)
         self.net = model

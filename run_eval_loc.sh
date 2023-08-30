@@ -1,14 +1,13 @@
 #!/bin/bash
 img_size=256
-use_mask=False
-use_cam=True
-use_sam=True
-use_mam=True
+use_cam=False
+use_sam=False
+use_mam=False
 dataset="BUSI"
 test_file="data/busi_test_binary.txt"
-model_name="resnet18_cbam_mask"
+model_name="deeplabv3"
 map_size=$(expr $img_size / 32)
-exp="exp1"
+exp="exp8"
 declare -a StringArray=( "${exp}-${model_name}-use_cam=${use_cam}-use_sam=${use_sam}-use_mam=${use_mam}-size=${img_size}/best_model.pt" )
 for model in ${StringArray[@]};
 do
